@@ -84,6 +84,25 @@
   .modal-card .row { margin-top: 10px; }
   .modal.hide { display: none; }
   .hide { display: none; }
+  /* 版式：手机竖排 添加下载 → 下载管理 → 连接 GitHub */
+  .layout { display: flex; flex-direction: column; }
+  .card-add { order: 1; }
+  .card-list { order: 2; }
+  .card-pat { order: 3; }
+  /* 电脑：左列下载管理，右列上「添加下载」下「连接 GitHub」 */
+  @media (min-width: 900px) {
+    .wrap { max-width: 1080px; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      grid-template-areas: "list add" "list pat";
+      gap: 14px; align-items: start;
+    }
+    .card-add, .card-list, .card-pat { margin-bottom: 0; }
+    .card-list { grid-area: list; }
+    .card-add { grid-area: add; }
+    .card-pat { grid-area: pat; }
+  }
 </style>
 </head>
 <body>
@@ -91,7 +110,9 @@
   <h1>远程下载 · 控制台</h1>
   <div class="sub">通用中转库 <code>Relay-Station</code> · 本页 <code>RemoteDL-Queue</code> 控制台 · 私有库 <code>RemoteDL</code> 存源码、产物与 <code>pat.md</code></div>
 
-  <div class="card">
+  <div class="layout">
+
+  <div class="card card-pat">
     <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
 
     <div class="wiz hide" id="wizard">
@@ -224,7 +245,7 @@
     </details>
   </div>
 
-  <div class="card">
+  <div class="card card-add">
     <h2>添加下载链接</h2>
     <label for="link">http / https 直链</label>
     <input type="text" id="link" placeholder="https://example.com/file.zip" inputmode="url">
@@ -236,7 +257,7 @@
     <p class="hint">配置主令牌后直接在本页创建 Issue，不跳转、不离开当前页面。App 下次检查或点「立即获取链接」时开始下载。</p>
   </div>
 
-  <div class="card">
+  <div class="card card-list">
     <h2>下载请求
       <button class="sec sm" id="btnRefresh">立即刷新</button>
       <button class="sec sm" id="btnAuto">自动刷新：开</button>
@@ -244,6 +265,7 @@
     <div id="list"><div class="empty">读取中…</div></div>
     <div class="status-line" id="statusLine">—</div>
   </div>
+  </div><!-- /.layout -->
 </div>
 
 <div class="modal hide" id="delModal">
