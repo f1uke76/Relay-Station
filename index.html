@@ -3,544 +3,90 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>远程下载 · 控制台</title>
+<title>Relay Station · 指令中转站</title>
 <style>
-  :root { color-scheme: dark; }
+  :root {
+    color-scheme: dark;
+    --bg: #0f1115;
+    --surface: #1a1d23;
+    --surface-2: #14171d;
+    --text: #e8eaed;
+    --muted: #9aa0a6;
+    --weak: #8b919a;
+    --primary: #1f6feb;
+    --primary-soft: #123a6b;
+    --radius: 12px;
+  }
   * { box-sizing: border-box; }
   body {
-    margin: 0; padding: 16px 14px 40px;
-    background: #0f1115; color: #e8eaed;
+    margin: 0; padding: 24px 14px 48px;
+    background: var(--bg); color: var(--text);
     font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
   .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 20px; font-weight: 600; margin: 0 0 2px; }
-  .sub { color: #9aa0a6; font-size: 12px; margin-bottom: 16px; }
-  .card { background: #1a1d23; border: 1px solid #2a2e36; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
-  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; color: #cfd4da; display: flex; align-items: center; gap: 8px; }
-  label { display: block; font-size: 12px; color: #9aa0a6; margin: 0 0 5px; }
-  input[type=text], input[type=password] {
-    width: 100%; background: #10131a; color: #e8eaed;
-    border: 1px solid #343a45; border-radius: 8px; padding: 10px 12px;
-    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 22px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px; color: #cfd4da; }
+  .card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
+  .entry {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--surface-2); border-radius: var(--radius);
+    padding: 16px; text-decoration: none; color: var(--text);
   }
-  input:focus { outline: none; border-color: #1f6feb; }
-  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  button {
-    flex: 1 1 auto; min-width: 110px; padding: 9px 12px;
-    border-radius: 8px; border: 1px solid #1f6feb;
-    background: #1f6feb; color: #fff; font-size: 13px; cursor: pointer;
+  .entry:active { background: var(--primary-soft); }
+  .mark {
+    flex: 0 0 44px; height: 44px; border-radius: 12px;
+    background: var(--primary); display: flex; align-items: center; justify-content: center;
   }
-  button.sec { background: transparent; color: #a8c7ff; border-color: #39465c; }
-  button.warn { background: transparent; color: #ffb4a8; border-color: #6a3b36; }
-  button.sm { min-width: 0; flex: 0 0 auto; padding: 6px 10px; font-size: 12px; }
-  button:disabled { opacity: .4; cursor: not-allowed; }
-  button:active { opacity: .75; }
-  .hint { font-size: 12px; color: #8b919a; margin: 10px 0 0; }
-  .msg { font-size: 12px; min-height: 18px; margin-top: 8px; color: #8ce0a8; }
-  .msg.err { color: #ff9c8f; }
+  .mark svg { width: 22px; height: 22px; fill: #fff; }
+  .entry-t, .entry-d { display: block; }
+  .entry-t { font-size: 15px; font-weight: 600; }
+  .entry-d { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .arrow { margin-left: auto; color: var(--weak); font-size: 20px; }
+  code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .hint { font-size: 12px; color: var(--weak); margin: 0; }
+  .note { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; margin-top: 12px; }
+  .note b { color: #cfd4da; }
   a { color: #8ab4f8; }
-  .item { border: 1px solid #2a2e36; border-radius: 10px; padding: 12px; margin-top: 10px; background: #14171d; }
-  .item-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .num { font-size: 12px; color: #6f7680; font-family: monospace; }
-  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #2a3140; color: #b9c6da; }
-  .badge.downloading { background: #123a6b; color: #9dc4ff; }
-  .badge.done { background: #17412c; color: #96e6b3; }
-  .badge.failed { background: #4a2222; color: #ffab9f; }
-  .badge.canceled, .badge.deleted { background: #463523; color: #ffcf9a; }
-  .badge.closed { background: #2b2b30; color: #8b919a; }
-  .url { font: 12px/1.5 ui-monospace, monospace; color: #c9d3e0; word-break: break-all; margin: 8px 0; }
-  .bar { height: 8px; border-radius: 6px; background: #262b34; overflow: hidden; margin: 8px 0 5px; }
-  .bar > i { display: block; height: 100%; background: #1f6feb; transition: width .3s; }
-  .bar.done > i { background: #2ea86a; }
-  .bar.failed > i { background: #d0574c; }
-  .meta { font-size: 11px; color: #8b919a; font-family: monospace; }
-  .actions { display: flex; gap: 8px; margin-top: 10px; }
-  .empty { color: #8b919a; font-size: 13px; padding: 14px 0; text-align: center; }
-  details { margin-top: 10px; }
-  summary { cursor: pointer; font-size: 12px; color: #9aa0a6; }
-  code { background: #10131a; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
-  .tokline { display: flex; gap: 8px; align-items: center; }
-  .tokline input { flex: 1; }
-  .status-line { font-size: 12px; color: #8b919a; margin-top: 8px; }
-  .wiz { display: grid; gap: 8px; margin-bottom: 4px; }
-  .wiz-step { display: flex; gap: 10px; align-items: flex-start; background: #14171d; border-radius: 10px; padding: 10px 12px; }
-  .wiz-n { flex: 0 0 22px; height: 22px; border-radius: 11px; background: #1f6feb; color: #fff;
-           font-size: 12px; line-height: 22px; text-align: center; font-weight: 600; }
-  .wiz-t { font-size: 13px; font-weight: 600; color: #cfd4da; }
-  .wiz-d { font-size: 12px; color: #8b919a; margin-top: 2px; }
-  .tokstat { font-size: 12px; color: #8ce0a8; margin-top: 6px; min-height: 16px; }
-  .tokstat.bad { color: #ff9c8f; }
-  .export { background: #14171d; border-radius: 10px; padding: 12px; margin-top: 10px; }
-  .export .link { font: 11px/1.5 ui-monospace, monospace; color: #9aa0a6; word-break: break-all; margin: 8px 0; }
-  .hide { display: none; }
+  .foot { font-size: 12px; color: var(--weak); margin-top: 20px; line-height: 1.9; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>远程下载 · 控制台</h1>
-  <div class="sub">公开中转库 <code>Relay-Station</code> 托管本站 + Issues 队列 · 私有库 <code>RemoteDL</code> 存源码、产物与 <code>pat.md</code></div>
+  <h1>Relay Station</h1>
+  <div class="sub">通用指令中转站 · 一个仓库托管多个控制台，共用 GitHub Issues 队列</div>
 
   <div class="card">
-    <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
-
-    <div class="wiz hide" id="wizard">
-      <div class="wiz-step">
-        <span class="wiz-n">1</span>
-        <div>
-          <div class="wiz-t">一端获取主令牌</div>
-          <div class="wiz-d">跳转到预填好的 GitHub 创建页生成令牌，复制回来点「保存」，即写入私有库 <code>pat.md</code>。</div>
-        </div>
-      </div>
-      <div class="wiz-step">
-        <span class="wiz-n">2</span>
-        <div>
-          <div class="wiz-t">其它端：手动复制填写</div>
-          <div class="wiz-d">点下面的「打开私有库 pat.md」→ 登录后复制「当前令牌」→ 粘到本页或 App 的令牌框 → 验证 → 保存。已配置过的端会自动同步最新令牌。</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="tokline hide" id="tokenRow">
-      <input type="password" id="token" placeholder="github_pat_...（粘贴或点从剪贴板导入）" autocomplete="off">
-    </div>
-    <div class="row" id="patActions"></div>
-    <div class="row">
-      <button class="sec sm" id="btnVaultDoc">打开私有库 pat.md（复制令牌）</button>
-      <button class="sec sm" id="btnVaultHome">打开私有代码库</button>
-    </div>
-    <div class="export hide" id="exportBox">
-      <div class="wiz-t">导出到其他设备</div>
-      <div class="hint" style="margin-top:4px">备用通道：配置链接内含令牌，只发给你自己的设备；打开即自动填写。</div>
-      <div class="link" id="shareLink"></div>
-      <div class="row">
-        <button class="sec sm" id="btnCopyShare">复制一键配置链接</button>
-        <button class="sec sm" id="btnCopyRawToken">复制令牌明文</button>
-      </div>
-    </div>
-    <div class="msg" id="tokMsg"></div>
-    <div class="tokstat" id="tokStat"></div>
-
-    <details>
-      <summary>双库职责与令牌复制方式</summary>
-      <p class="hint">公开库 <a href="https://github.com/f1uke76/Relay-Station" target="_blank" rel="noopener">Relay-Station</a>
-        是<b>通用指令中转站</b>：托管本网页，并用 Issues 承载各类指令队列（当前用于下载指令）；后续其它中转需求也复用它。
-        私有库 <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">RemoteDL</a>
-        只存 Android 源码、APK 产物、控制台源码副本与
-        <a href="https://github.com/f1uke76/RemoteDL/blob/main/pat.md" target="_blank" rel="noopener">pat.md</a>。</p>
-      <p class="hint">私有库必须登录 GitHub 才能查看。任一网页或 App 首次使用时，点上面「打开私有库 pat.md」，
-        登录后复制「当前令牌」那一串字符，回到本页粘进令牌框，点「验证」再点「保存」。App 里对应的是
-        「打开 pat.md 复制令牌」按钮。不做任何自动读取，令牌始终由你亲自复制填写。</p>
-      <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>Relay-Station</b>，
-        权限勾 <b>Issues: Read and write</b> 与 <b>Contents: Read and write</b>（前者用于创建/修改 Issue 和回传进度，后者用于写 pat.md）。</p>
-      <p class="hint"><b>安全</b>：pat.md 含明文令牌且留在 git 历史里，私有库切勿转公开；令牌泄露就撤销，并在各端点「删除」。
-        公开中转库的 Issues 匿名可读，App 不配令牌也能下载，但别把带签名参数的私密链接放进去。</p>
-    </details>
+    <h2>控制台</h2>
+    <a class="entry" href="./RemoteDL-Queue/">
+      <span class="mark">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v9.2l3.6-3.6 1.4 1.4-6 6-6-6 1.4-1.4L11 12.2V3zM4 18h16v2H4v-2z"/></svg>
+      </span>
+      <span>
+        <span class="entry-t">远程下载控制台 · RemoteDL-Queue</span>
+        <span class="entry-d">提交下载链接、查看实时进度、取消任务</span>
+      </span>
+      <span class="arrow">›</span>
+    </a>
   </div>
 
   <div class="card">
-    <h2>添加下载链接</h2>
-    <label for="link">http / https 直链</label>
-    <input type="text" id="link" placeholder="https://example.com/file.zip" inputmode="url">
-    <div class="row">
-      <button id="btnAdd">加入队列</button>
-      <button class="sec" id="btnOpenIssues">在 GitHub 查看</button>
+    <h2>添加新的控制台</h2>
+    <p class="hint">在本仓库 <code>main</code> 分支新建一个子目录并放入 <code>index.html</code>，
+      网址即为 <code>https://f1uke76.github.io/Relay-Station/&lt;子目录名&gt;/</code>；
+      然后在上面「控制台」区块加一条同样的入口即可。每个页面可以有自己完整的 HTML / CSS / JS。</p>
+    <div class="note">
+      <b>共用队列要注意</b>：所有页面共享同一个仓库的 Issues。远程下载 App 会读取全部 open Issues，
+      只执行首行形如 <code>ADD https://...</code> 的指令。其它控制台请避开这个格式，
+      或改用独立前缀 / 标签，避免被当成下载任务。
     </div>
-    <div class="msg" id="msg"></div>
-    <p class="hint">配置主令牌后直接在本页创建 Issue，不跳转、不离开当前页面。App 下次检查或点「立即获取链接」时开始下载。</p>
   </div>
 
-  <div class="card">
-    <h2>下载请求
-      <button class="sec sm" id="btnRefresh">立即刷新</button>
-      <button class="sec sm" id="btnAuto">自动刷新：开</button>
-    </h2>
-    <div id="list"><div class="empty">读取中…</div></div>
-    <div class="status-line" id="statusLine">—</div>
+  <div class="foot">
+    <a href="https://github.com/f1uke76/Relay-Station" target="_blank" rel="noopener">通用中转库 Relay-Station</a>
+    · <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">私有代码库 RemoteDL</a><br>
+    本仓库为公开库，请勿放置令牌、产物或带签名参数的私密链接。
   </div>
 </div>
-
-<script>
-(function () {
-  var OWNER = 'f1uke76';
-  var QUEUE = 'Relay-Station';
-  var VAULT = 'RemoteDL';
-  var API = 'https://api.github.com/repos/' + OWNER + '/' + QUEUE + '/issues';
-  var PAT_DOC = 'https://api.github.com/repos/' + OWNER + '/' + VAULT + '/contents/pat.md';
-  var PAT_DOC_WEB = 'https://github.com/' + OWNER + '/' + VAULT + '/blob/main/pat.md';
-  var VAULT_WEB = 'https://github.com/' + OWNER + '/' + VAULT;
-  var WEB_URL = 'https://f1uke76.github.io/Relay-Station/';
-  var $ = function (id) { return document.getElementById(id); };
-  var token = localStorage.getItem('rdl_token') || '';
-  var tokenTs = Number(localStorage.getItem('rdl_token_ts') || 0);
-  var autoOn = localStorage.getItem('rdl_auto') !== '0';
-  var timer = null;
-  var REFRESH_MS = 5000;
-
-  var PAT_LINK = 'https://github.com/settings/personal-access-tokens/new'
-    + '?name=' + encodeURIComponent('RemoteDL')
-    + '&description=' + encodeURIComponent('RemoteDL relay issues + private pat.md')
-    + '&target_name=' + encodeURIComponent(OWNER)
-    + '&expires_in=none'
-    + '&issues=write'
-    + '&contents=write';
-
-  function msg(t, bad) {
-    var m = $('msg'); m.textContent = t; m.className = 'msg' + (bad ? ' err' : '');
-    if (t) setTimeout(function () { if (m.textContent === t) m.textContent = ''; }, 7000);
-  }
-  function tokMsg(t, bad) {
-    var m = $('tokMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' err' : '');
-    if (t) setTimeout(function () { if (m.textContent === t) m.textContent = ''; }, 9000);
-  }
-  function setTokStat(t, bad) {
-    var e = $('tokStat'); e.textContent = t; e.className = 'tokstat' + (bad ? ' bad' : '');
-  }
-  function headers(t) {
-    var h = { 'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28',
-              'Content-Type': 'application/json' };
-    var v = t === undefined ? token : t;
-    if (v) h['Authorization'] = 'Bearer ' + v;
-    return h;
-  }
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
-  function fmtBytes(b) {
-    b = Number(b) || 0;
-    if (b < 1024) return b + 'B';
-    if (b < 1048576) return (b / 1024).toFixed(0) + 'KB';
-    if (b < 1073741824) return (b / 1048576).toFixed(1) + 'MB';
-    return (b / 1073741824).toFixed(2) + 'GB';
-  }
-  function tag() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
-  function rawFirstLine(body) { return String(body || '').split(/\r?\n/)[0].trim(); }
-  function linkOf(body) {
-    var f = rawFirstLine(body);
-    var m = /^(?:ADD|GET|DL)\s+(https?:\/\/\S+)/i.exec(f);
-    return m ? m[1] : (f || '（无链接）');
-  }
-  function rdl(body) {
-    var m = /<!--RDL:(\{.*?\})-->/.exec(String(body || ''));
-    if (!m) return null;
-    try { return JSON.parse(m[1]); } catch (e) { return null; }
-  }
-  function tokenLike(s) {
-    var m = /(?:github_pat_|ghp_)[A-Za-z0-9_]{20,}/.exec(String(s || ''));
-    return m ? m[0] : '';
-  }
-  function b64encode(str) {
-    var bytes = new TextEncoder().encode(str), bin = '';
-    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return btoa(bin);
-  }
-  function b64decode(s) {
-    var bin = atob(String(s).replace(/\s/g, ''));
-    var arr = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    return new TextDecoder().decode(arr);
-  }
-  function parseRegistry(text) {
-    var m = /<!--RDL-PAT:(\{.*?\})-->/.exec(String(text || ''));
-    if (!m) return null;
-    try { return JSON.parse(m[1]); } catch (e) { return null; }
-  }
-  function registryDoc(t, by, ts) {
-    return '# RemoteDL 令牌登记\n\n'
-      + '> 本文件位于私有仓库，含明文令牌。切勿将仓库转为公开。\n\n'
-      + '> 其它设备：打开本文件，复制下面「当前令牌」的整串字符，\n'
-      + '> 粘贴到控制台网页或 App 的令牌框里，点「验证」再点「保存」。\n\n'
-      + (t ? '- 当前令牌：`' + t + '`\n- 登记时间：' + new Date(ts).toLocaleString('zh-CN')
-              + '\n- 来源端：' + by + '\n- 权限：Relay-Station Issues 写 + RemoteDL Contents 写\n'
-           : '- 当前状态：已清空（无有效登记）\n')
-      + '\n<!--RDL-PAT:{"token":' + JSON.stringify(t || '')
-      + ',"ts":' + ts + ',"by":' + JSON.stringify(by || '') + '}-->\n';
-  }
-  function write(str, ok) {
-    if (!navigator.clipboard || !navigator.clipboard.writeText) {
-      tokMsg('当前浏览器不支持复制，请手动选中复制', true); return;
-    }
-    navigator.clipboard.writeText(str).then(function () { tokMsg(ok); },
-      function () { tokMsg('复制失败，请手动选中复制', true); });
-  }
-
-  function renderPat() {
-    var typed = $('token').value.trim();
-    var state = token ? 'saved' : (typed ? 'filled' : 'empty');
-    $('tokBadge').textContent = token ? '已配置' : (typed ? '待保存' : '未配置');
-    $('tokBadge').className = 'badge' + (token ? ' done' : (typed ? ' downloading' : ' canceled'));
-    $('tokenRow').className = 'tokline' + (state === 'saved' ? ' hide' : '');
-    $('wizard').className = 'wiz' + (state === 'empty' ? '' : ' hide');
-    if (state !== 'saved') $('exportBox').className = 'export hide';
-    var h = '';
-    if (state === 'empty') {
-      h = '<button id="aGet">一键获取令牌</button><button class="sec" id="aPaste">从剪贴板导入</button>';
-    } else if (state === 'filled') {
-      h = '<button id="aVerify">验证</button><button class="sec" id="aSave">保存</button>';
-    } else {
-      h = '<button id="aExport">导出</button><button class="warn" id="aDelete">删除</button>';
-      $('shareLink').textContent = WEB_URL + '#pat=' + encodeURIComponent(token);
-    }
-    $('patActions').innerHTML = h;
-    if (state === 'empty') {
-      $('aGet').addEventListener('click', openPatPage);
-      $('aPaste').addEventListener('click', pasteIntoBox);
-    } else if (state === 'filled') {
-      $('aVerify').addEventListener('click', verifyTyped);
-      $('aSave').addEventListener('click', saveTyped);
-    } else {
-      $('aExport').addEventListener('click', function () {
-        $('exportBox').className = 'export';
-        tokMsg('已展开导出面板，复制配置链接发到其它设备即可自动填好');
-      });
-      $('aDelete').addEventListener('click', deleteToken);
-    }
-  }
-  $('token').addEventListener('input', renderPat);
-  $('btnVaultDoc').addEventListener('click', function () {
-    window.open(PAT_DOC_WEB, '_blank', 'noopener');
-    tokMsg('在 pat.md 里复制「当前令牌」，回来粘贴后点「验证 / 保存」');
-  });
-  $('btnVaultHome').addEventListener('click', function () {
-    window.open(VAULT_WEB, '_blank', 'noopener');
-  });
-  $('btnCopyShare').addEventListener('click', function () {
-    write(WEB_URL + '#pat=' + encodeURIComponent(token), '配置链接已复制');
-  });
-  $('btnCopyRawToken').addEventListener('click', function () {
-    write(token, '令牌已复制');
-  });
-
-  function openPatPage() {
-    window.open(PAT_LINK, '_blank', 'noopener');
-    tokMsg('已打开预填创建页：生成时仓库选 RemoteDL + Relay-Station，复制后回来导入');
-  }
-  async function pasteIntoBox() {
-    if (!navigator.clipboard || !navigator.clipboard.readText) {
-      tokMsg('当前浏览器不支持读取剪贴板，请手动粘贴', true); return;
-    }
-    try {
-      var t = tokenLike(await navigator.clipboard.readText());
-      if (!t) { tokMsg('剪贴板里没有 GitHub 令牌', true); return; }
-      $('token').value = t;
-      renderPat();
-      tokMsg('已填入令牌，点「验证」确认后再点「保存」');
-    } catch (e) { tokMsg('读取剪贴板失败：' + e.message, true); }
-  }
-  async function readRegistry(t) {
-    var r = await fetch(PAT_DOC + '?ref=main&_t=' + Date.now(),
-                        { headers: headers(t), cache: 'no-store' });
-    if (!r.ok) return { error: r.status };
-    var j = await r.json();
-    return { sha: j.sha, reg: parseRegistry(b64decode(j.content || '')) };
-  }
-  async function writeRegistry(t, by, ts, remove) {
-    var cur = await readRegistry(t);
-    var body = { message: 'pat: ' + (remove ? 'clear' : 'register') + ' from ' + by,
-                 content: b64encode(registryDoc(remove ? '' : t, by, ts)), branch: 'main' };
-    if (cur.sha) body.sha = cur.sha;
-    var r = await fetch(PAT_DOC, { method: 'PUT', headers: headers(t),
-                                   body: JSON.stringify(body) });
-    if (!r.ok) throw new Error('登记失败 HTTP ' + r.status + '（需要 Contents 写权限）');
-  }
-  async function verifyTyped() {
-    var t = tokenLike($('token').value);
-    if (!t) { tokMsg('请先填入有效的 GitHub 令牌', true); return; }
-    setTokStat('校验中…', false);
-    try {
-      var r = await fetch('https://api.github.com/user', { headers: headers(t), cache: 'no-store' });
-      if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? '（无效或已过期）' : ''));
-      var u = await r.json();
-      var s = '有效 · 账号 ' + (u.login || '?');
-      var exp = r.headers.get('github-authentication-token-expiration');
-      if (exp) s += ' · 有效期至 ' + exp.slice(0, 10);
-      var q = await fetch(API + '?state=all&per_page=1&_t=' + Date.now(),
-                          { headers: headers(t), cache: 'no-store' });
-      s += q.ok ? ' · 中转库可读' : ' · 中转库读取失败(' + q.status + ')';
-      var reg = await readRegistry(t);
-      s += reg.error ? ' · pat.md 不可读' : ' · pat.md 可读';
-      setTokStat(s, false);
-      tokMsg('验证通过，点「保存」写入私有库 pat.md');
-    } catch (e) { setTokStat('校验失败：' + e.message, true); }
-  }
-  async function saveTyped() {
-    var t = tokenLike($('token').value);
-    if (!t) { tokMsg('令牌格式不对', true); return; }
-    var ts = Date.now();
-    try {
-      tokMsg('正在登记到私有库 pat.md…');
-      await writeRegistry(t, 'web', ts, false);
-      adopt(t, ts, '已保存并登记到 pat.md；其它设备打开 pat.md 手动复制即可');
-      refresh();
-    } catch (e) { tokMsg(e.message, true); setTokStat('保存失败：' + e.message, true); }
-  }
-  function adopt(t, ts, note) {
-    token = t; tokenTs = ts;
-    localStorage.setItem('rdl_token', token);
-    localStorage.setItem('rdl_token_ts', String(ts));
-    $('token').value = '';
-    renderPat();
-    setTokStat(note, false);
-    tokMsg(note);
-  }
-  async function deleteToken() {
-    var old = token;
-    try { await writeRegistry(old, 'web', Date.now(), true); }
-    catch (e) { tokMsg('本地已删除；清空登记失败：' + e.message, true); }
-    token = ''; tokenTs = 0;
-    localStorage.removeItem('rdl_token'); localStorage.removeItem('rdl_token_ts');
-    $('token').value = '';
-    renderPat();
-    setTokStat('', false);
-    tokMsg('已删除本机令牌并清空 pat.md 登记');
-    refresh();
-  }
-  async function syncFromRegistry() {
-    try {
-      var out = await readRegistry(token);
-      if (out.error || !out.reg || !out.reg.token) return;
-      if (out.reg.token !== token && Number(out.reg.ts || 0) > tokenTs) {
-        adopt(out.reg.token, Number(out.reg.ts), '已从 pat.md 同步最新令牌');
-        refresh();
-      }
-    } catch (e) {}
-  }
-
-  /** 启动：只处理配置链接；令牌一律由用户从 pat.md 手动复制填写。 */
-  function init() {
-    var m = /^#pat=(.+)$/.exec(location.hash);
-    if (m) {
-      var t = tokenLike(decodeURIComponent(m[1]));
-      history.replaceState(null, '', location.pathname + location.search);
-      if (t) {
-        $('token').value = t;
-        if (t !== token) { token = ''; localStorage.removeItem('rdl_token'); }
-        renderPat();
-        tokMsg('已从配置链接读取令牌，点「验证」或「保存」');
-        return;
-      }
-    }
-    renderPat();
-    if (token) { syncFromRegistry(); return; }
-    if (!$('token').value.trim()) {
-      setTokStat('未配置：点「打开私有库 pat.md」复制令牌粘贴，或「一键获取令牌」新建', false);
-    }
-  }
-
-  $('btnAdd').addEventListener('click', async function () {
-    var url = $('link').value.trim();
-    if (!/^https?:\/\//i.test(url)) { msg('请填 http/https 开头的链接', true); return; }
-    if (!token) { msg('请先在上方配置主令牌（提交 Issue 需要写权限）', true); return; }
-    var line = 'ADD ' + url + ' #' + tag();
-    var body = line + '\n<!--RDL:{"s":"queued","p":0}-->\n';
-    var title = 'DL ' + new Date().toISOString().slice(0, 16).replace('T', ' ');
-    try {
-      var r = await fetch(API, { method: 'POST', headers: headers(),
-        body: JSON.stringify({ title: title, body: body }) });
-      if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? '（令牌无效）' : ''));
-      $('link').value = '';
-      msg('已加入队列，无需跳转');
-      refresh();
-    } catch (e) { msg('提交失败：' + e.message, true); }
-  });
-  $('btnOpenIssues').addEventListener('click', function () {
-    window.open('https://github.com/' + OWNER + '/' + QUEUE + '/issues', '_blank', 'noopener');
-  });
-
-  async function cancel(n, item, mode) {
-    if (!token) { msg('取消/删除需要先配置主令牌', true); return; }
-    var st = rdl(item.body) || { p: 0 };
-    var body = rawFirstLine(item.body) + '\n<!--RDL:{"s":"' + (mode === 'cancel' ? 'canceled' : 'deleted')
-      + '","p":' + (st.p || 0) + '}-->\n' + (mode === 'cancel' ? '<!--RDL-CANCEL-->\n' : '');
-    try {
-      var r = await fetch(API + '/' + n, { method: 'PATCH', headers: headers(),
-        body: JSON.stringify({ state: 'closed', body: body }) });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      msg(mode === 'cancel' ? '已取消（App 会在 5 秒内中断）' : '已删除该记录');
-      refresh();
-    } catch (e) { msg('操作失败：' + e.message, true); }
-  }
-  function stateOf(item) {
-    var s = rdl(item.body);
-    if (!s) return { key: item.state === 'closed' ? 'closed' : 'waiting', label: item.state === 'closed' ? '已关闭' : '等待 App 上报' };
-    var map = { queued: '排队中', downloading: '下载中', done: '已完成',
-                failed: '失败', canceled: '已取消', deleted: '已删除' };
-    return { key: s.s || 'waiting', label: map[s.s] || s.s, data: s };
-  }
-  function render(items) {
-    var box = $('list');
-    if (!Array.isArray(items) || !items.length) {
-      box.innerHTML = '<div class="empty">队列为空，上面加一个链接试试</div>';
-      return;
-    }
-    var html = '';
-    items.slice().reverse().forEach(function (it) {
-      var st = stateOf(it), s = st.data || {};
-      var pct = Math.max(0, Math.min(100, Number(s.p) || 0));
-      var barCls = st.key === 'done' ? 'done' : (st.key === 'failed' ? 'failed' : '');
-      var meta = '';
-      if (s.total > 0) meta += fmtBytes(s.done) + ' / ' + fmtBytes(s.total) + ' · ' + pct + '%';
-      else if (s.done > 0) meta += fmtBytes(s.done);
-      if (s.ts) meta += ' · 更新 ' + new Date(Number(s.ts)).toLocaleTimeString('zh-CN');
-      if (it.created_at) meta += ' · 创建 ' + new Date(it.created_at).toLocaleString('zh-CN');
-      html += '<div class="item">'
-        + '<div class="item-head"><span class="num">#' + it.number + '</span>'
-        + '<span class="badge ' + esc(st.key) + '">' + esc(st.label)
-        + (st.key === 'downloading' ? ' ' + pct + '%' : '') + '</span>'
-        + (it.state === 'closed' ? '<span class="badge closed">已关闭</span>' : '') + '</div>'
-        + '<div class="url">' + esc(linkOf(it.body)) + '</div>'
-        + '<div class="bar ' + barCls + '"><i style="width:' + pct + '%"></i></div>'
-        + '<div class="meta">' + esc(meta || '暂无进度数据') + '</div>'
-        + '<div class="actions">'
-        + '<button class="warn sm" data-act="cancel" data-n="' + it.number + '">取消任务</button>'
-        + '<button class="sec sm" data-act="delete" data-n="' + it.number + '">删除记录</button>'
-        + '</div></div>';
-    });
-    box.innerHTML = html;
-    Array.prototype.forEach.call(box.querySelectorAll('button[data-act]'), function (b) {
-      b.addEventListener('click', function () {
-        var n = Number(b.getAttribute('data-n'));
-        var it = items.find(function (x) { return x.number === n; });
-        if (it) cancel(n, it, b.getAttribute('data-act'));
-      });
-    });
-  }
-  async function refresh() {
-    try {
-      var r = await fetch(API + '?state=all&per_page=100&_t=' + Date.now(),
-        { headers: headers(), cache: 'no-store' });
-      if (r.status === 403) throw new Error('API 限流，稍后再试');
-      if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? '（令牌无效）' : ''));
-      var items = await r.json();
-      render(items);
-      $('statusLine').textContent = '中转库 ' + QUEUE + ' · 共 ' + items.length + ' 条 · 上次刷新 '
-        + new Date().toLocaleTimeString('zh-CN') + ' · 自动刷新'
-        + (autoOn ? '每 5 秒' : '已关闭');
-    } catch (e) {
-      $('statusLine').textContent = '读取失败：' + e.message;
-      $('list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
-    }
-  }
-  $('btnRefresh').addEventListener('click', refresh);
-  $('btnAuto').addEventListener('click', function () {
-    autoOn = !autoOn;
-    localStorage.setItem('rdl_auto', autoOn ? '1' : '0');
-    $('btnAuto').textContent = '自动刷新：' + (autoOn ? '开' : '关');
-    setupTimer();
-  });
-  function setupTimer() {
-    if (timer) clearInterval(timer);
-    timer = null;
-    if (autoOn) timer = setInterval(refresh, REFRESH_MS);
-  }
-
-  init();
-  $('btnAuto').textContent = '自动刷新：' + (autoOn ? '开' : '关');
-  setupTimer();
-  refresh();
-})();
-</script>
 </body>
 </html>
