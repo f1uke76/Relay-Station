@@ -106,7 +106,6 @@
     <div class="row" id="patActions"></div>
     <div class="row">
       <button class="sec sm" id="btnVaultDoc">打开私有库 pat.md（复制令牌）</button>
-      <button class="sec sm" id="btnVaultHome">打开私有代码库</button>
     </div>
     <div class="export hide" id="exportBox">
       <div class="wiz-t">导出到其他设备</div>
@@ -246,7 +245,6 @@
   var API = 'https://api.github.com/repos/' + OWNER + '/' + QUEUE + '/issues';
   var PAT_DOC = 'https://api.github.com/repos/' + OWNER + '/' + VAULT + '/contents/pat.md';
   var PAT_DOC_WEB = 'https://github.com/' + OWNER + '/' + VAULT + '/blob/main/pat.md';
-  var VAULT_WEB = 'https://github.com/' + OWNER + '/' + VAULT;
   var WEB_URL = 'https://f1uke76.github.io/Relay-Station/RemoteDL-Queue/';
   var $ = function (id) { return document.getElementById(id); };
   var token = localStorage.getItem('rdl_token') || '';
@@ -355,8 +353,9 @@
     if (state !== 'saved') $('exportBox').className = 'export hide';
     var h = '';
     if (state === 'empty') {
+      var guideOpen = $('patGuide').open;
       h = '<button id="aGet">一键获取令牌</button><button class="sec" id="aPaste">从剪贴板导入</button>'
-        + '<button class="sec" id="aGuide">填写指引</button>';
+        + '<button class="sec" id="aGuide">' + (guideOpen ? '收起指引' : '填写指引') + '</button>';
     } else if (state === 'filled') {
       h = '<button id="aVerify">验证</button><button class="sec" id="aSave">保存</button>';
     } else {
@@ -367,7 +366,7 @@
     if (state === 'empty') {
       $('aGet').addEventListener('click', openPatPage);
       $('aPaste').addEventListener('click', pasteIntoBox);
-      $('aGuide').addEventListener('click', openPatGuide);
+      $('aGuide').addEventListener('click', togglePatGuide);
     } else if (state === 'filled') {
       $('aVerify').addEventListener('click', verifyTyped);
       $('aSave').addEventListener('click', saveTyped);
@@ -381,12 +380,10 @@
     }
   }
   $('token').addEventListener('input', renderPat);
+  $('patGuide').addEventListener('toggle', syncGuideBtn);
   $('btnVaultDoc').addEventListener('click', function () {
     window.open(PAT_DOC_WEB, '_blank', 'noopener');
     tokMsg('需先用 f1uke76 账号登录 GitHub（未登录会显示 404），登录后复制「当前令牌」回来粘贴');
-  });
-  $('btnVaultHome').addEventListener('click', function () {
-    window.open(VAULT_WEB, '_blank', 'noopener');
   });
   $('btnCopyShare').addEventListener('click', function () {
     write(WEB_URL + '#pat=' + encodeURIComponent(token), '配置链接已复制');
@@ -400,12 +397,22 @@
     tokMsg('已打开预填创建页：仓库范围勾 RemoteDL + Relay-Station（或 All repositories），'
       + 'Issues / Contents 均为 Read and write → Generate token → 复制整串回来导入；点「填写指引」看逐项效果');
   }
-  /** 展开 PAT 逐项填写指引，并滚到说明处。 */
-  function openPatGuide() {
+  /** 展开 / 收起 PAT 逐项填写指引：按钮文字随折叠状态切换。 */
+  function togglePatGuide() {
     var d = $('patGuide');
-    d.open = true;
-    if (d.scrollIntoView) d.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    tokMsg('按指引逐项确认；最关键是 Repository access 必须覆盖两个仓库');
+    d.open = !d.open;
+    syncGuideBtn();
+    if (d.open) {
+      if (d.scrollIntoView) d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      tokMsg('按指引逐项确认；最关键是 Repository access 必须覆盖两个仓库');
+    } else {
+      tokMsg('指引已收起，点「填写指引」可再次展开');
+    }
+  }
+  /** 同步指引按钮文字（按钮只在未配置状态存在，切换状态后可能不存在）。 */
+  function syncGuideBtn() {
+    var b = $('aGuide');
+    if (b) b.textContent = $('patGuide').open ? '收起指引' : '填写指引';
   }
   async function pasteIntoBox() {
     if (!navigator.clipboard || !navigator.clipboard.readText) {
