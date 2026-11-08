@@ -23,7 +23,8 @@
   匿名可读；创建 / 修改 Issue 需要 fine-grained PAT 的 `Issues: Read and write`。
 - 私有库 `f1uke76/RemoteDL`：存放 Android 源码、APK 产物、控制台源码副本，以及
   `pat.md`（明文登记主令牌）。匿名访问一律 **404**，必须先用 f1uke76 账号登录 GitHub 才能打开；
-  因此「打开私有库 pat.md」按钮在未登录时显示 404 是正常现象，不是链接错误。
+  因此「查看 pat.md」按钮走 `https://github.com/login?return_to=<pat.md>`：已登录会直接跳回文件，
+  未登录先停在登录页，登录后自动回到 `pat.md`（避免未登录直接看到 404）。
 - 网页与 App 都**不内置任何令牌**。首次使用：登录 GitHub → 打开私有库 `pat.md` →
   手动复制「当前令牌」→ 粘贴到控制台或 App → 验证 → 保存。
 - 保存**不是无条件覆盖**：先读 `pat.md`，若已登记**另一枚仍有效**的令牌（`GET /user` 返回 200），
