@@ -112,7 +112,7 @@
     </div>
 
     <div class="tokline hide" id="tokenRow">
-      <input type="password" id="token" placeholder="github_pat_...（粘贴到这里）" autocomplete="off">
+      <input type="password" id="token" placeholder="github_pat_...（粘贴或点从剪贴板导入）" autocomplete="off">
     </div>
     <div class="row pat-actions" id="patActions"></div>
     <div class="export hide" id="exportBox">
@@ -393,6 +393,7 @@
     if (state === 'empty') {
       var guideOpen = $('patGuide').open;
       h = '<button id="aGet">一键获取令牌</button>'
+        + '<button class="sec" id="aPaste">从剪贴板导入</button>'
         + '<button class="sec" id="aGuide">' + (guideOpen ? '收起指引' : '填写指引') + '</button>';
     } else if (state === 'filled') {
       h = '<button id="aVerify">验证</button><button class="sec" id="aSave">保存</button>';
@@ -404,7 +405,7 @@
     h += '<button class="sec" id="btnVaultDoc">查看 pat.md</button>';
     $('patActions').innerHTML = h;
     // 3 个按钮排一行（3 列），4 个时 2 列 2 行：不出现单个按钮独占总行，且左右对齐
-    $('patActions').style.setProperty('--cols', state === 'saved' ? 2 : 3);
+    $('patActions').style.setProperty('--cols', state === 'filled' ? 3 : 2);
     $('btnVaultDoc').addEventListener('click', function () {
       // 已登录时 GitHub 会直接从 /login 跳回 pat.md；未登录则先停在登录页，登录后再回去
       window.open(PAT_DOC_LOGIN, '_blank', 'noopener');
@@ -412,6 +413,7 @@
     });
     if (state === 'empty') {
       $('aGet').addEventListener('click', openPatPage);
+      $('aPaste').addEventListener('click', pasteIntoBox);
       $('aGuide').addEventListener('click', togglePatGuide);
     } else if (state === 'filled') {
       $('aVerify').addEventListener('click', verifyTyped);
@@ -467,6 +469,19 @@
   function syncGuideBtn() {
     var b = $('aGuide');
     if (b) b.textContent = $('patGuide').open ? '收起指引' : '填写指引';
+  }
+  /** 从剪贴板读一次，只取形如 github_pat_ 的串，填进输入框等用户验证保存。 */
+  async function pasteIntoBox() {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      tokMsg('当前浏览器不支持读取剪贴板，请手动粘贴', true); return;
+    }
+    try {
+      var t = tokenLike(await navigator.clipboard.readText());
+      if (!t) { tokMsg('剪贴板里没有 GitHub 令牌', true); return; }
+      $('token').value = t;
+      renderPat();
+      tokMsg('已填入令牌，点「验证」确认后再点「保存」');
+    } catch (e) { tokMsg('读取剪贴板失败：' + e.message, true); }
   }
   async function readRegistry(t) {
     var r = await fetch(PAT_DOC + '?ref=main&_t=' + Date.now(),
