@@ -151,7 +151,7 @@
           <div>
             <div class="wiz-t">Expiration：选 No expiration（无期限）</div>
             <div class="wiz-d">GitHub 会黄字提醒设有效期，个人自用可忽略。若选 30 / 90 天：到期后网页与 App 全部报 401，
-              要重新生成并重新保存；新令牌会覆盖 <code>pat.md</code>，其它端启动时自动同步。</div>
+              要重新生成；先「删除所有」清空 <code>pat.md</code> 登记，再保存新令牌，其它端启动时自动同步。</div>
           </div>
         </div>
         <div class="wiz-step">
@@ -194,7 +194,8 @@
           <div>
             <div class="wiz-t">Generate token：复制整串，回来验证再保存</div>
             <div class="wiz-d">令牌只显示一次，复制 <code>github_pat_...</code> 整串 → 粘贴到本页或 App →
-              「验证」（看账号、有效期、中转库与 <code>pat.md</code> 是否可读）→「保存」（覆盖写 <code>pat.md</code>）。
+              「验证」（看账号、有效期、中转库与 <code>pat.md</code> 是否可读）→「保存」（登记到 <code>pat.md</code>；
+              若已有<b>仍有效</b>的登记则不覆盖，会提示改用登记的那枚）。
               其它设备打开 <code>pat.md</code> 复制同一串即可，<b>不要重复生成</b>。</div>
           </div>
         </div>
@@ -256,6 +257,19 @@
     </div>
     <div class="row">
       <button class="sec" id="aDelCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal hide" id="conflictModal">
+  <div class="modal-card">
+    <h3>私有库已有有效令牌</h3>
+    <p>登记的是 <code id="conflictTail">…</code>，登记时间 <span id="conflictWhen">—</span>。</p>
+    <p>为避免把其它设备正在用的令牌顶掉，<b>本次保存未覆盖原登记</b>。</p>
+    <p>日常直接用登记的那枚即可；确实要换成新令牌，请先点「删除所有」清空登记，再保存。</p>
+    <div class="row">
+      <button id="aUseReg">改用私有库的</button>
+      <button class="sec" id="aConflictClose">知道了</button>
     </div>
   </div>
 </div>
@@ -417,6 +431,12 @@
   $('aDelLocal').addEventListener('click', deleteLocalOnly);
   $('aDelAll').addEventListener('click', deleteToken);
   $('aDelCancel').addEventListener('click', closeDelDialog);
+  $('aConflictClose').addEventListener('click', function () {
+    $('conflictModal').className = 'modal hide';
+  });
+  $('conflictModal').addEventListener('click', function (e) {
+    if (e.target === $('conflictModal')) $('conflictModal').className = 'modal hide';
+  });
   $('delModal').addEventListener('click', function (e) {
     if (e.target === $('delModal')) closeDelDialog();
   });
@@ -491,12 +511,59 @@
       tokMsg('验证通过，点「保存」写入私有库 pat.md');
     } catch (e) { setTokStat('校验失败：' + e.message, true); }
   }
+  /** 判断一枚令牌现在是否还能用：true 有效 / false 已失效 / null 判断不了（网络问题）。 */
+  async function tokenAlive(t) {
+    try {
+      var r = await fetch('https://api.github.com/user', { headers: headers(t), cache: 'no-store' });
+      if (r.ok) return true;
+      if (r.status === 401 || r.status === 403) return false;
+      return null;
+    } catch (e) { return null; }
+  }
+  /** 令牌尾号，用于提示里辨认，不暴露完整串。 */
+  function tail(t) {
+    return t.length > 4 ? t.slice(-4) : '****';
+  }
+  /** 私有库已有有效令牌：不覆盖，弹窗让用户直接用登记的那一枚。 */
+  function showConflict(exist, rts) {
+    $('conflictTail').textContent = '…' + tail(exist);
+    $('conflictWhen').textContent = rts ? new Date(rts).toLocaleString() : '时间未知';
+    $('conflictModal').className = 'modal';
+    $('aUseReg').onclick = function () {
+      $('conflictModal').className = 'modal hide';
+      var ts = Date.now();
+      adopt(exist, ts, '已改用私有库登记的令牌（未覆盖原记录）');
+      refresh();
+    };
+  }
   async function saveTyped() {
     var t = tokenLike($('token').value);
     if (!t) { tokMsg('令牌格式不对', true); return; }
     var ts = Date.now();
+    setTokStat('正在检查私有库 pat.md…', false);
     try {
-      tokMsg('正在登记到私有库 pat.md…');
+      var cur = await readRegistry(t);
+      if (cur.error) throw new Error('读不到 pat.md（HTTP ' + cur.error + '），本次未保存');
+      var reg = cur.reg || {};
+      var exist = (reg.token || '').trim();
+
+      // 已经是同一枚：直接保存，不必重复提交登记
+      if (exist && exist === t) {
+        adopt(t, ts, '私有库登记的正是这枚令牌，已直接保存（登记未改动）');
+        refresh();
+        return;
+      }
+      // 已有另一枚：只要它还有效就不覆盖
+      if (exist) {
+        var alive = await tokenAlive(exist);
+        if (alive !== false) {
+          showConflict(exist, Number(reg.ts || 0));
+          setTokStat('私有库已有有效令牌（…' + tail(exist) + '），本次未覆盖；'
+            + '可点「改用私有库的」，或先「删除所有」清空登记再保存新令牌', true);
+          return;
+        }
+        tokMsg('私有库原登记的令牌已失效，本次用新令牌覆盖');
+      }
       await writeRegistry(t, 'web', ts, false);
       adopt(t, ts, '已保存并登记到 pat.md；其它设备打开 pat.md 手动复制即可');
       refresh();
