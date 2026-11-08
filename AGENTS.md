@@ -98,3 +98,9 @@
 - App 的按钮网格必须用 `removeAllViews()` 后按状态重新 `addView`：`GridLayout` 里 `GONE` 的按钮仍占格子，
   只切 visibility 会留出空位（曾出现「第一行第一格空着」）。
 - 禁止只改网页或只改 App 的 PAT 填写指引；两端文案与私有库 `console/` 源码副本必须同步更新（见第四节）。
+
+## 六、版本
+
+- 当前定版：**0.9.0**（`versionCode 20`）。除非用户明确要求，**不要提升版本号**。
+- 发版时才改 `versionName` / `versionCode` / `Net.UA` 三处，并只保留当前版本 APK 在 `apk/`。
+- 仓库保持纯净：只放当前版本需要的文件，历史产物（旧 APK、临时脚本）不入库。
