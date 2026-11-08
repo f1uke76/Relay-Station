@@ -49,10 +49,25 @@
    改完用带随机 query 的请求复核 Pages 已刷新，并检查 `pages/builds/latest` 为 `built`。
 8. 完成后在回复里给出新增页面的完整网址，并说明是否需要同步改 App。
 
-## 四、禁止事项
+## 四、PAT 填写指引（网页与 App 必须一致）
+
+- 「一键获取令牌」预填链接只带 `name` / `description` / `target_name` / `expires_in=none` /
+  `issues=write` / `contents=write`，**不预填 Repository access**；用户必须在创建页自己确认仓库范围，
+  漏勾是 403 的常见原因。
+- 两端都要说明逐项填法与效果：Resource owner 选 `f1uke76`；Expiration 选 `No expiration`（选有效期到期后两端全线 401）；
+  Repository access 用 `All repositories` 或只勾 `RemoteDL` + `Relay-Station`；
+  `Issues` / `Contents` 都要 `Read and write`，`Metadata` 为强制 `Read-only`。
+- 效果对应关系：`Issues` 写 → 网页创建 / 取消 / 删除 + App 回写进度；`Contents` 写 → 读写 `pat.md`、
+  其它端同步；只勾一个库 → 另一个库的操作 403；已生成的令牌可直接编辑补权限，令牌字符串不变。
+- 网页指引在 `RemoteDL-Queue/index.html` 的 `patGuide` 折叠区，App 指引在 `MainActivity.PAT_GUIDE` 弹窗里。
+  **改任何一端都要同步另一端**，并同步私有库 `console/` 源码副本、重新编译 APK；
+  根导航页与公开库 README 保持极简，不放指引。
+
+## 五、禁止事项
 
 - 禁止在本公开仓库存放任何令牌、`pat.md`、APK、源码或带签名参数的私密链接。
 - 禁止把私有库内容整体复制进公开库；私有库切勿转为公开（`pat.md` 明文且留在 git 历史里）。
 - 禁止修改 `RemoteDL-Queue/` 内的控制台逻辑，除非用户明确要求（改它通常要同步改 App 并重编译）。
 - 禁止删除或改名现有子目录，除非用户明确要求（会让线上地址与 App 按钮变成 404）。
 - 禁止在根导航页或 README 里使用表格、卡片或大段介绍；用户明确要求保持极简。
+- 禁止只改网页或只改 App 的 PAT 填写指引；两端文案与私有库 `console/` 源码副本必须同步更新（见第四节）。
