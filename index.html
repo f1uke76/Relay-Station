@@ -78,7 +78,7 @@
 <body>
 <div class="wrap">
   <h1>远程下载 · 控制台</h1>
-  <div class="sub">公开中转库 <code>RemoteDL-Queue</code> 托管本站 + Issues 队列 · 私有库 <code>RemoteDL</code> 存源码、产物与 <code>pat.md</code></div>
+  <div class="sub">公开中转库 <code>Relay-Station</code> 托管本站 + Issues 队列 · 私有库 <code>RemoteDL</code> 存源码、产物与 <code>pat.md</code></div>
 
   <div class="card">
     <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
@@ -122,15 +122,15 @@
 
     <details>
       <summary>双库职责与令牌复制方式</summary>
-      <p class="hint">公开库 <a href="https://github.com/f1uke76/RemoteDL-Queue" target="_blank" rel="noopener">RemoteDL-Queue</a>
-        是<b>指令中转专用站</b>：托管本网页，并用 Issues 承载下载指令队列；后续其它中转需求也复用它。
+      <p class="hint">公开库 <a href="https://github.com/f1uke76/Relay-Station" target="_blank" rel="noopener">Relay-Station</a>
+        是<b>通用指令中转站</b>：托管本网页，并用 Issues 承载各类指令队列（当前用于下载指令）；后续其它中转需求也复用它。
         私有库 <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">RemoteDL</a>
         只存 Android 源码、APK 产物、控制台源码副本与
         <a href="https://github.com/f1uke76/RemoteDL/blob/main/pat.md" target="_blank" rel="noopener">pat.md</a>。</p>
       <p class="hint">私有库必须登录 GitHub 才能查看。任一网页或 App 首次使用时，点上面「打开私有库 pat.md」，
         登录后复制「当前令牌」那一串字符，回到本页粘进令牌框，点「验证」再点「保存」。App 里对应的是
         「打开 pat.md 复制令牌」按钮。不做任何自动读取，令牌始终由你亲自复制填写。</p>
-      <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>RemoteDL-Queue</b>，
+      <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>Relay-Station</b>，
         权限勾 <b>Issues: Read and write</b> 与 <b>Contents: Read and write</b>（前者用于创建/修改 Issue 和回传进度，后者用于写 pat.md）。</p>
       <p class="hint"><b>安全</b>：pat.md 含明文令牌且留在 git 历史里，私有库切勿转公开；令牌泄露就撤销，并在各端点「删除」。
         公开中转库的 Issues 匿名可读，App 不配令牌也能下载，但别把带签名参数的私密链接放进去。</p>
@@ -162,13 +162,13 @@
 <script>
 (function () {
   var OWNER = 'f1uke76';
-  var QUEUE = 'RemoteDL-Queue';
+  var QUEUE = 'Relay-Station';
   var VAULT = 'RemoteDL';
   var API = 'https://api.github.com/repos/' + OWNER + '/' + QUEUE + '/issues';
   var PAT_DOC = 'https://api.github.com/repos/' + OWNER + '/' + VAULT + '/contents/pat.md';
   var PAT_DOC_WEB = 'https://github.com/' + OWNER + '/' + VAULT + '/blob/main/pat.md';
   var VAULT_WEB = 'https://github.com/' + OWNER + '/' + VAULT;
-  var WEB_URL = 'https://f1uke76.github.io/RemoteDL-Queue/';
+  var WEB_URL = 'https://f1uke76.github.io/Relay-Station/';
   var $ = function (id) { return document.getElementById(id); };
   var token = localStorage.getItem('rdl_token') || '';
   var tokenTs = Number(localStorage.getItem('rdl_token_ts') || 0);
@@ -253,7 +253,7 @@
       + '> 其它设备：打开本文件，复制下面「当前令牌」的整串字符，\n'
       + '> 粘贴到控制台网页或 App 的令牌框里，点「验证」再点「保存」。\n\n'
       + (t ? '- 当前令牌：`' + t + '`\n- 登记时间：' + new Date(ts).toLocaleString('zh-CN')
-              + '\n- 来源端：' + by + '\n- 权限：RemoteDL-Queue Issues 写 + RemoteDL Contents 写\n'
+              + '\n- 来源端：' + by + '\n- 权限：Relay-Station Issues 写 + RemoteDL Contents 写\n'
            : '- 当前状态：已清空（无有效登记）\n')
       + '\n<!--RDL-PAT:{"token":' + JSON.stringify(t || '')
       + ',"ts":' + ts + ',"by":' + JSON.stringify(by || '') + '}-->\n';
@@ -315,7 +315,7 @@
 
   function openPatPage() {
     window.open(PAT_LINK, '_blank', 'noopener');
-    tokMsg('已打开预填创建页：生成时仓库选 RemoteDL + RemoteDL-Queue，复制后回来导入');
+    tokMsg('已打开预填创建页：生成时仓库选 RemoteDL + Relay-Station，复制后回来导入');
   }
   async function pasteIntoBox() {
     if (!navigator.clipboard || !navigator.clipboard.readText) {
