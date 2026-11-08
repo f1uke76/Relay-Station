@@ -1,9 +1,11 @@
-# RemoteDL-Queue
+# RemoteDL-Queue · 指令中转专用站
 
-只托管在线控制台与引导配置：
+本仓库是**通用指令中转站**：既托管在线控制台网页，也用 Issues 承载远程下载的指令队列。
+后续其它中转需求也复用本仓库，因此这里只放网页与队列，不放任何令牌、源码或产物。
 
-- `index.html` → https://f1uke76.github.io/RemoteDL-Queue/
-- `bootstrap.json` → 只读引导令牌，供各端启动时读取私有库 pat.md
+- 在线控制台：<https://f1uke76.github.io/RemoteDL-Queue/>
+- 指令队列：本仓库 Issues（公开、匿名可读；创建与修改需要主令牌）
+- 进度回传：App 把进度写进对应 Issue body 的隐藏注释 `<!--RDL:{...}-->`
 
-不含队列数据、不含主令牌。指令队列在 f1uke76/RemoteDL-Relay，
-代码/产物/令牌登记在私有库 f1uke76/RemoteDL。
+配套私有库 `f1uke76/RemoteDL` 存放 Android 源码、APK 产物与 `pat.md` 令牌登记。
+网页与 App 都不内置令牌；首次使用请打开私有库 `pat.md` 手动复制填写。
