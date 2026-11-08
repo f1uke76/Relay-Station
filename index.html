@@ -1,92 +1,32 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<!--
+  本页只做入口导航：视觉上保持「两行文字 + 两个链接」，禁止加表格、卡片或介绍段落。
+  界面逻辑、双库关系与新增控制台流程见仓库根目录 AGENTS.md。
+  Agent 修改本页或其它文件前，必须先完整阅读 AGENTS.md。
+-->
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Relay Station · 指令中转站</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中转站主页</title>
 <style>
-  :root {
-    color-scheme: dark;
-    --bg: #0f1115;
-    --surface: #1a1d23;
-    --surface-2: #14171d;
-    --text: #e8eaed;
-    --muted: #9aa0a6;
-    --weak: #8b919a;
-    --primary: #1f6feb;
-    --primary-soft: #123a6b;
-    --radius: 12px;
-  }
-  * { box-sizing: border-box; }
+  :root { color-scheme: dark; }
   body {
-    margin: 0; padding: 24px 14px 48px;
-    background: var(--bg); color: var(--text);
-    font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    margin: 0; padding: 24px 16px 40px;
+    background: #0f1115; color: #e8eaed;
+    font: 15px/1.8 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
-  .sub { color: var(--muted); font-size: 12px; margin-bottom: 22px; }
-  h2 { font-size: 14px; font-weight: 600; margin: 0 0 12px; color: #cfd4da; }
-  .card { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 14px; }
-  .entry {
-    display: flex; align-items: center; gap: 14px;
-    background: var(--surface-2); border-radius: var(--radius);
-    padding: 16px; text-decoration: none; color: var(--text);
-  }
-  .entry:active { background: var(--primary-soft); }
-  .mark {
-    flex: 0 0 44px; height: 44px; border-radius: 12px;
-    background: var(--primary); display: flex; align-items: center; justify-content: center;
-  }
-  .mark svg { width: 22px; height: 22px; fill: #fff; }
-  .entry-t, .entry-d { display: block; }
-  .entry-t { font-size: 15px; font-weight: 600; }
-  .entry-d { font-size: 12px; color: var(--muted); margin-top: 2px; }
-  .arrow { margin-left: auto; color: var(--weak); font-size: 20px; }
-  code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
-  .hint { font-size: 12px; color: var(--weak); margin: 0; }
-  .note { background: var(--surface-2); border-radius: var(--radius); padding: 12px 14px; margin-top: 12px; }
-  .note b { color: #cfd4da; }
-  a { color: #8ab4f8; }
-  .foot { font-size: 12px; color: var(--weak); margin-top: 20px; line-height: 1.9; }
+  .wrap { max-width: 680px; margin: 0 auto; }
+  p { margin: 0 0 4px; color: #9aa0a6; font-size: 13px; }
+  a { display: block; margin: 0 0 18px; color: #8ab4f8; font-size: 14px; word-break: break-all; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Relay Station</h1>
-  <div class="sub">通用指令中转站 · 一个仓库托管多个控制台，共用 GitHub Issues 队列</div>
-
-  <div class="card">
-    <h2>控制台</h2>
-    <a class="entry" href="./RemoteDL-Queue/">
-      <span class="mark">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v9.2l3.6-3.6 1.4 1.4-6 6-6-6 1.4-1.4L11 12.2V3zM4 18h16v2H4v-2z"/></svg>
-      </span>
-      <span>
-        <span class="entry-t">远程下载控制台 · RemoteDL-Queue</span>
-        <span class="entry-d">提交下载链接、查看实时进度、取消任务</span>
-      </span>
-      <span class="arrow">›</span>
-    </a>
-  </div>
-
-  <div class="card">
-    <h2>添加新的控制台</h2>
-    <p class="hint">在本仓库 <code>main</code> 分支新建一个子目录并放入 <code>index.html</code>，
-      网址即为 <code>https://f1uke76.github.io/Relay-Station/&lt;子目录名&gt;/</code>；
-      然后在上面「控制台」区块加一条同样的入口即可。每个页面可以有自己完整的 HTML / CSS / JS。</p>
-    <div class="note">
-      <b>共用队列要注意</b>：所有页面共享同一个仓库的 Issues。远程下载 App 会读取全部 open Issues，
-      只执行首行形如 <code>ADD https://...</code> 的指令。其它控制台请避开这个格式，
-      或改用独立前缀 / 标签，避免被当成下载任务。
-    </div>
-  </div>
-
-  <div class="foot">
-    <a href="https://github.com/f1uke76/Relay-Station" target="_blank" rel="noopener">通用中转库 Relay-Station</a>
-    · <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">私有代码库 RemoteDL</a><br>
-    本仓库为公开库，请勿放置令牌、产物或带签名参数的私密链接。
-  </div>
+  <p>中转站主页：</p>
+  <a href="https://f1uke76.github.io/Relay-Station/">https://f1uke76.github.io/Relay-Station/</a>
+  <p>远程下载中转站：</p>
+  <a href="https://f1uke76.github.io/Relay-Station/RemoteDL-Queue/">https://f1uke76.github.io/Relay-Station/RemoteDL-Queue/</a>
 </div>
 </body>
 </html>
