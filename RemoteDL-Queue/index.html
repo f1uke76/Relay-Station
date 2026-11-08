@@ -543,7 +543,10 @@
     setTokStat('正在检查私有库 pat.md…', false);
     try {
       var cur = await readRegistry(t);
-      if (cur.error) throw new Error('读不到 pat.md（HTTP ' + cur.error + '），本次未保存');
+      // 404 = 文件还没建（首次登记），按空登记处理；其它错误才中止
+      if (cur.error && cur.error !== 404) {
+        throw new Error('读不到 pat.md（HTTP ' + cur.error + '），本次未保存');
+      }
       var reg = cur.reg || {};
       var exist = (reg.token || '').trim();
 
