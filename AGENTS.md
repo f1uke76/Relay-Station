@@ -76,12 +76,16 @@
 
 ## 四之半、控制台版式（务必保持）
 
-- 页面骨架：`.wrap > h1 / .sub / .layout > .card-add / .card-list / .card-pat`，三张卡片都在 `.layout` 内。
+- 页面骨架：`.wrap > h1 / .layout > .card-add / .card-list / .card-pat`，三张卡片都在 `.layout` 内；
+  页面**没有副标题、没有开场说明**，第一屏直接是操作卡片。
 - 手机（< 900px）：`.layout` 为纵向 flex，视觉顺序固定为
   **添加下载链接 → 下载请求 → 连接 GitHub**（靠 `order` 控制，不放宽）。
 - 电脑（≥ 900px）：`.layout` 变网格，`grid-template-areas: "list add" "list pat"`，
   即**左列独占下载管理，右列上「添加下载」下「连接 GitHub」**；`.wrap` 放宽到 1080px。
 - 新增控制台卡片时必须先决定它在这两套版式里的位置，不能直接插在 `.wrap` 下破坏分列。
+- **页面只放操作元素**：按钮、输入框、状态行、必填提示。双库职责、令牌复制流程、安全须知这类说明文字
+  一律写在 `AGENTS.md` / 私有库 README 里，不要堆到网页上（已按要求删除「双库职责与令牌复制方式」等段落）。
+- 空的状态行（`.msg` / `.tokstat`）必须不占位：样式里用 `:empty { display: none; }`，避免卡片底部留白。
 
 ## 五、禁止事项
 
