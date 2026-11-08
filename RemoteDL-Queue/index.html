@@ -127,7 +127,7 @@
         私有库 <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">RemoteDL</a>
         只存 Android 源码、APK 产物、控制台源码副本与
         <a href="https://github.com/f1uke76/RemoteDL/blob/main/pat.md" target="_blank" rel="noopener">pat.md</a>。</p>
-      <p class="hint">私有库必须登录 GitHub 才能查看。任一网页或 App 首次使用时，点上面「打开私有库 pat.md」，
+      <p class="hint">私有库必须先用 f1uke76 账号登录 GitHub 才能查看；未登录打开会显示 404（正常现象）。任一网页或 App 首次使用时，点上面「打开私有库 pat.md」，
         登录后复制「当前令牌」那一串字符，回到本页粘进令牌框，点「验证」再点「保存」。App 里对应的是
         「打开 pat.md 复制令牌」按钮。不做任何自动读取，令牌始终由你亲自复制填写。</p>
       <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>Relay-Station</b>，
@@ -280,7 +280,7 @@
     } else if (state === 'filled') {
       h = '<button id="aVerify">验证</button><button class="sec" id="aSave">保存</button>';
     } else {
-      h = '<button id="aExport">导出</button><button class="warn" id="aDelete">删除</button>';
+      h = '<button class="sec" id="aVerifySaved">验证</button><button id="aExport">导出</button><button class="warn" id="aDelete">删除</button>';
       $('shareLink').textContent = WEB_URL + '#pat=' + encodeURIComponent(token);
     }
     $('patActions').innerHTML = h;
@@ -291,6 +291,7 @@
       $('aVerify').addEventListener('click', verifyTyped);
       $('aSave').addEventListener('click', saveTyped);
     } else {
+      $('aVerifySaved').addEventListener('click', verifySaved);
       $('aExport').addEventListener('click', function () {
         $('exportBox').className = 'export';
         tokMsg('已展开导出面板，复制配置链接发到其它设备即可自动填好');
@@ -301,7 +302,7 @@
   $('token').addEventListener('input', renderPat);
   $('btnVaultDoc').addEventListener('click', function () {
     window.open(PAT_DOC_WEB, '_blank', 'noopener');
-    tokMsg('在 pat.md 里复制「当前令牌」，回来粘贴后点「验证 / 保存」');
+    tokMsg('需先用 f1uke76 账号登录 GitHub（未登录会显示 404），登录后复制「当前令牌」回来粘贴');
   });
   $('btnVaultHome').addEventListener('click', function () {
     window.open(VAULT_WEB, '_blank', 'noopener');
@@ -397,12 +398,56 @@
     tokMsg('已删除本机令牌并清空 pat.md 登记');
     refresh();
   }
+  /** 其它端删除令牌并清空 pat.md 后，本机同步删除（不写回，避免循环）。 */
+  function clearLocal(note) {
+    token = ''; tokenTs = 0;
+    localStorage.removeItem('rdl_token'); localStorage.removeItem('rdl_token_ts');
+    $('token').value = '';
+    renderPat();
+    setTokStat(note, true);
+    tokMsg(note);
+    refresh();
+  }
+  /** 已保存状态的验证：令牌是否仍有效 + pat.md 是否已清空 / 与本机一致。 */
+  async function verifySaved() {
+    if (!token) return;
+    setTokStat('校验中…', false);
+    var parts = [];
+    try {
+      var r = await fetch('https://api.github.com/user', { headers: headers(), cache: 'no-store' });
+      if (!r.ok) {
+        setTokStat('令牌无效或已过期（HTTP ' + r.status + '）：建议点「删除」后重新获取', true);
+        tokMsg('令牌已失效，请点「删除」并重新获取', true);
+        return;
+      }
+      var u = await r.json();
+      parts.push('令牌有效 · 账号 ' + (u.login || '?'));
+      var exp = r.headers.get('github-authentication-token-expiration');
+      if (exp) parts.push('有效期至 ' + exp.slice(0, 10));
+    } catch (e) {
+      setTokStat('令牌校验失败：' + e.message, true); return;
+    }
+    var out = await readRegistry(token), bad = false;
+    if (out.error) { parts.push('pat.md 不可读（HTTP ' + out.error + '）'); bad = true; }
+    else if (!out.reg) { parts.push('pat.md 无登记记录'); bad = true; }
+    else if (!out.reg.token) { parts.push('pat.md 已清空（其它端可能已删除）'); bad = true; }
+    else if (out.reg.token === token) parts.push('pat.md 已登记且与本机一致');
+    else parts.push('pat.md 登记的是另一枚令牌（启动会自动同步）');
+    var s = parts.join(' · ');
+    setTokStat(s, bad);
+    tokMsg('验证完成：' + s);
+  }
   async function syncFromRegistry() {
     try {
       var out = await readRegistry(token);
-      if (out.error || !out.reg || !out.reg.token) return;
-      if (out.reg.token !== token && Number(out.reg.ts || 0) > tokenTs) {
-        adopt(out.reg.token, Number(out.reg.ts), '已从 pat.md 同步最新令牌');
+      if (out.error || !out.reg) return;
+      var rt = out.reg.token || '', rts = Number(out.reg.ts || 0);
+      if (!rt) {
+        if (rts > tokenTs) clearLocal('pat.md 已被清空，已同步删除本机令牌');
+        return;
+      }
+      if (rt !== token && rts > tokenTs) {
+        adopt(rt, rts, '已从 pat.md 同步最新令牌');
         refresh();
       }
     } catch (e) {}
