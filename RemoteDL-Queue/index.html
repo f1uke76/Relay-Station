@@ -72,6 +72,9 @@
   .tokstat.bad { color: #ff9c8f; }
   .export { background: #14171d; border-radius: 10px; padding: 12px; margin-top: 10px; }
   .export .link { font: 11px/1.5 ui-monospace, monospace; color: #9aa0a6; word-break: break-all; margin: 8px 0; }
+  /* PAT 功能键：等宽网格，2 个两列、3 个三列、4 个两列两行，左右对齐且不会单个拉伸 */
+  .row.pat-actions { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 8px; }
+  .row.pat-actions button { width: 100%; min-width: 0; padding-left: 6px; padding-right: 6px; }
   .modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
            padding: 18px; background: rgba(6, 8, 12, .72); }
   .modal-card { width: 100%; max-width: 380px; background: #1a1d23; border: 1px solid #2a2e36;
@@ -103,18 +106,15 @@
         <span class="wiz-n">2</span>
         <div>
           <div class="wiz-t">其它端：手动复制填写</div>
-          <div class="wiz-d">点下面的「打开私有库 pat.md」→ 登录后复制「当前令牌」→ 粘到本页或 App 的令牌框 → 验证 → 保存。已配置过的端会自动同步最新令牌。</div>
+          <div class="wiz-d">点下面的「查看 pat.md」→ 未登录会先跳登录页，登录后复制「当前令牌」→ 粘到本页或 App 的令牌框 → 验证 → 保存。已配置过的端会自动同步最新令牌。</div>
         </div>
       </div>
     </div>
 
     <div class="tokline hide" id="tokenRow">
-      <input type="password" id="token" placeholder="github_pat_...（粘贴或点从剪贴板导入）" autocomplete="off">
+      <input type="password" id="token" placeholder="github_pat_...（粘贴到这里）" autocomplete="off">
     </div>
-    <div class="row" id="patActions"></div>
-    <div class="row">
-      <button class="sec sm" id="btnVaultDoc">打开私有库 pat.md（复制令牌）</button>
-    </div>
+    <div class="row pat-actions" id="patActions"></div>
     <div class="export hide" id="exportBox">
       <div class="wiz-t">导出到其他设备</div>
       <div class="hint" style="margin-top:4px">备用通道：配置链接内含令牌，只发给你自己的设备；打开即自动填写。</div>
@@ -213,7 +213,7 @@
         私有库 <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">RemoteDL</a>
         只存 Android 源码、APK 产物、控制台源码副本与
         <a href="https://github.com/f1uke76/RemoteDL/blob/main/pat.md" target="_blank" rel="noopener">pat.md</a>。</p>
-      <p class="hint">私有库必须先用 f1uke76 账号登录 GitHub 才能查看；未登录打开会显示 404（正常现象）。任一网页或 App 首次使用时，点上面「打开私有库 pat.md」，
+      <p class="hint">私有库必须先用 f1uke76 账号登录 GitHub 才能查看；未登录打开会显示 404（正常现象）。任一网页或 App 首次使用时，点上面「查看 pat.md」，
         登录后复制「当前令牌」那一串字符，回到本页粘进令牌框，点「验证」再点「保存」。App 里对应的是
         「打开 pat.md 复制令牌」按钮。不做任何自动读取，令牌始终由你亲自复制填写。</p>
       <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>Relay-Station</b>，
@@ -282,6 +282,7 @@
   var API = 'https://api.github.com/repos/' + OWNER + '/' + QUEUE + '/issues';
   var PAT_DOC = 'https://api.github.com/repos/' + OWNER + '/' + VAULT + '/contents/pat.md';
   var PAT_DOC_WEB = 'https://github.com/' + OWNER + '/' + VAULT + '/blob/main/pat.md';
+  var PAT_DOC_LOGIN = 'https://github.com/login?return_to=' + encodeURIComponent(PAT_DOC_WEB);
   var WEB_URL = 'https://f1uke76.github.io/Relay-Station/RemoteDL-Queue/';
   var $ = function (id) { return document.getElementById(id); };
   var token = localStorage.getItem('rdl_token') || '';
@@ -391,7 +392,7 @@
     var h = '';
     if (state === 'empty') {
       var guideOpen = $('patGuide').open;
-      h = '<button id="aGet">一键获取令牌</button><button class="sec" id="aPaste">从剪贴板导入</button>'
+      h = '<button id="aGet">一键获取令牌</button>'
         + '<button class="sec" id="aGuide">' + (guideOpen ? '收起指引' : '填写指引') + '</button>';
     } else if (state === 'filled') {
       h = '<button id="aVerify">验证</button><button class="sec" id="aSave">保存</button>';
@@ -399,10 +400,18 @@
       h = '<button class="sec" id="aVerifySaved">验证</button><button id="aExport">导出</button><button class="warn" id="aDelete">删除</button>';
       $('shareLink').textContent = WEB_URL + '#pat=' + encodeURIComponent(token);
     }
+    // 三个状态都带上「查看 pat.md」，与状态按钮放进同一网格等宽排列
+    h += '<button class="sec" id="btnVaultDoc">查看 pat.md</button>';
     $('patActions').innerHTML = h;
+    // 3 个按钮排一行（3 列），4 个时 2 列 2 行：不出现单个按钮独占总行，且左右对齐
+    $('patActions').style.setProperty('--cols', state === 'saved' ? 2 : 3);
+    $('btnVaultDoc').addEventListener('click', function () {
+      // 已登录时 GitHub 会直接从 /login 跳回 pat.md；未登录则先停在登录页，登录后再回去
+      window.open(PAT_DOC_LOGIN, '_blank', 'noopener');
+      tokMsg('未登录会先跳登录页，登录后自动回到 pat.md；打开后复制「当前令牌」回来粘贴');
+    });
     if (state === 'empty') {
       $('aGet').addEventListener('click', openPatPage);
-      $('aPaste').addEventListener('click', pasteIntoBox);
       $('aGuide').addEventListener('click', togglePatGuide);
     } else if (state === 'filled') {
       $('aVerify').addEventListener('click', verifyTyped);
@@ -418,10 +427,6 @@
   }
   $('token').addEventListener('input', renderPat);
   $('patGuide').addEventListener('toggle', syncGuideBtn);
-  $('btnVaultDoc').addEventListener('click', function () {
-    window.open(PAT_DOC_WEB, '_blank', 'noopener');
-    tokMsg('需先用 f1uke76 账号登录 GitHub（未登录会显示 404），登录后复制「当前令牌」回来粘贴');
-  });
   $('btnCopyShare').addEventListener('click', function () {
     write(WEB_URL + '#pat=' + encodeURIComponent(token), '配置链接已复制');
   });
@@ -462,18 +467,6 @@
   function syncGuideBtn() {
     var b = $('aGuide');
     if (b) b.textContent = $('patGuide').open ? '收起指引' : '填写指引';
-  }
-  async function pasteIntoBox() {
-    if (!navigator.clipboard || !navigator.clipboard.readText) {
-      tokMsg('当前浏览器不支持读取剪贴板，请手动粘贴', true); return;
-    }
-    try {
-      var t = tokenLike(await navigator.clipboard.readText());
-      if (!t) { tokMsg('剪贴板里没有 GitHub 令牌', true); return; }
-      $('token').value = t;
-      renderPat();
-      tokMsg('已填入令牌，点「验证」确认后再点「保存」');
-    } catch (e) { tokMsg('读取剪贴板失败：' + e.message, true); }
   }
   async function readRegistry(t) {
     var r = await fetch(PAT_DOC + '?ref=main&_t=' + Date.now(),
@@ -689,7 +682,7 @@
     renderPat();
     if (token) { syncFromRegistry(); return; }
     if (!$('token').value.trim()) {
-      setTokStat('未配置：点「打开私有库 pat.md」复制令牌粘贴，或「一键获取令牌」新建', false);
+      setTokStat('未配置：点「查看 pat.md」复制令牌粘贴，或「一键获取令牌」新建', false);
     }
   }
 
