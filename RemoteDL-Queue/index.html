@@ -48,6 +48,7 @@
   .badge.done { background: #17412c; color: #96e6b3; }
   .badge.failed { background: #4a2222; color: #ffab9f; }
   .badge.canceled, .badge.deleted { background: #463523; color: #ffcf9a; }
+  .badge.paused { background: #3a3320; color: #ffd08a; }
   .badge.closed { background: #2b2b30; color: #8b919a; }
   .url { font: 12px/1.5 ui-monospace, monospace; color: #c9d3e0; word-break: break-all; margin: 8px 0; }
   .bar { height: 8px; border-radius: 6px; background: #262b34; overflow: hidden; margin: 8px 0 5px; }
@@ -55,7 +56,8 @@
   .bar.done > i { background: #2ea86a; }
   .bar.failed > i { background: #d0574c; }
   .meta { font-size: 11px; color: #8b919a; font-family: monospace; }
-  .actions { display: flex; gap: 8px; margin-top: 10px; }
+  .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .actions button { flex: 1 1 calc(50% - 4px); min-width: 0; }
   .empty { color: #8b919a; font-size: 13px; padding: 14px 0; text-align: center; }
   details { margin-top: 10px; }
   summary { cursor: pointer; font-size: 12px; color: #9aa0a6; }
@@ -99,7 +101,7 @@
       grid-template-areas: "list add" "list pat";
       gap: 14px; align-items: start;
     }
-    .card-add, .card-list, .card-pat { margin-bottom: 0; }
+    .card-add, .card-list, .card-pat { margin: 0; }
     .card-list { grid-area: list; }
     .card-add { grid-area: add; }
     .card-pat { grid-area: pat; }
@@ -712,23 +714,79 @@
     window.open('https://github.com/' + OWNER + '/' + QUEUE + '/issues', '_blank', 'noopener');
   });
 
-  async function cancel(n, item, mode) {
-    if (!token) { msg('取消/删除需要先配置主令牌', true); return; }
+  /** 每个状态该出现哪些按钮（成对切换，不出现孤立按钮）。 */
+  function actionsFor(it, st) {
+    var n = it.number;
+    var b = function (act, cls, text) {
+      return '<button class="' + cls + '" data-act="' + act + '" data-n="' + n + '">' + text + '</button>';
+    };
+    if (st.key === 'deleted') return b('purge', 'warn', '永久删除');
+    if (st.key === 'canceled') return b('start', 'sec', '重启任务') + b('delete', 'sec', '删除记录');
+    if (st.key === 'paused') return b('start', 'sec', '开始任务') + b('cancel', 'warn', '取消任务');
+    if (st.key === 'done' || st.key === 'failed' || st.key === 'closed') {
+      return b('start', 'sec', '重启任务') + b('delete', 'sec', '删除记录');
+    }
+    return b('pause', 'sec', '暂停任务') + b('cancel', 'warn', '取消任务');
+  }
+
+  async function patchIssue(n, payload) {
+    var r = await fetch(API + '/' + n, { method: 'PATCH', headers: headers(),
+      body: JSON.stringify(payload) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+  }
+
+  /** 暂停 / 开始 / 取消 / 删除记录 / 永久删除。 */
+  async function runAction(item, act) {
+    if (act === 'purge') { await purgeIssue(item); return; }
+    if (!token) { msg('需要先配置主令牌', true); return; }
     var st = rdl(item.body) || { p: 0 };
-    var body = rawFirstLine(item.body) + '\n<!--RDL:{"s":"' + (mode === 'cancel' ? 'canceled' : 'deleted')
-      + '","p":' + (st.p || 0) + '}-->\n' + (mode === 'cancel' ? '<!--RDL-CANCEL-->\n' : '');
+    var first = rawFirstLine(item.body);
+    var p = Number(st.p) || 0;
     try {
-      var r = await fetch(API + '/' + n, { method: 'PATCH', headers: headers(),
-        body: JSON.stringify({ state: 'closed', body: body }) });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      msg(mode === 'cancel' ? '已取消（App 会在 5 秒内中断）' : '已删除该记录');
+      if (act === 'pause') {
+        await patchIssue(item.number, { body: first + '\n<!--RDL:{"s":"paused","p":' + p
+          + '}-->\n<!--RDL-PAUSE-->\n' });
+        msg('已暂停：App 下次检查会跳过该任务，已下载的分片保留');
+      } else if (act === 'start') {
+        await patchIssue(item.number, { state: 'open',
+          body: first + '\n<!--RDL:{"s":"queued","p":' + p + '}-->\n' });
+        msg('已重新排队，App 下次检查会接着下（支持断点续传）');
+      } else if (act === 'cancel') {
+        await patchIssue(item.number, { state: 'closed',
+          body: first + '\n<!--RDL:{"s":"canceled","p":' + p + '}-->\n<!--RDL-CANCEL-->\n' });
+        msg('已取消任务（App 会在 5 秒内中断）');
+      } else if (act === 'delete') {
+        await patchIssue(item.number, { state: 'closed',
+          body: first + '\n<!--RDL:{"s":"deleted","p":' + p + '}-->\n' });
+        msg('已删除记录，可再点「永久删除」彻底移除');
+      }
       refresh();
     } catch (e) { msg('操作失败：' + e.message, true); }
   }
+
+  /** 永久删除：把 Issue 本身删掉（GraphQL deleteIssue），不可恢复。 */
+  async function purgeIssue(it) {
+    if (!it.node_id) { msg('缺少 Issue 标识，无法永久删除', true); return; }
+    if (!window.confirm('永久删除 Issue #' + it.number + '？此操作不可恢复。')) return;
+    try {
+      var r = await fetch('https://api.github.com/graphql', { method: 'POST', headers: headers(),
+        body: JSON.stringify({
+          query: 'mutation($id:ID!){deleteIssue(input:{issueId:$id}){clientMutationId}}',
+          variables: { id: it.node_id } }) });
+      var j = await r.json();
+      if (j.errors && j.errors.length) throw new Error(j.errors[0].message);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      msg('已永久删除 #' + it.number);
+      refresh();
+    } catch (e) {
+      msg('永久删除失败：' + e.message + '（通常是令牌或账号缺少仓库管理员权限）', true);
+    }
+  }
+
   function stateOf(item) {
     var s = rdl(item.body);
     if (!s) return { key: item.state === 'closed' ? 'closed' : 'waiting', label: item.state === 'closed' ? '已关闭' : '等待 App 上报' };
-    var map = { queued: '排队中', downloading: '下载中', done: '已完成',
+    var map = { queued: '排队中', downloading: '下载中', paused: '已暂停', done: '已完成',
                 failed: '失败', canceled: '已取消', deleted: '已删除' };
     return { key: s.s || 'waiting', label: map[s.s] || s.s, data: s };
   }
@@ -756,17 +814,14 @@
         + '<div class="url">' + esc(linkOf(it.body)) + '</div>'
         + '<div class="bar ' + barCls + '"><i style="width:' + pct + '%"></i></div>'
         + '<div class="meta">' + esc(meta || '暂无进度数据') + '</div>'
-        + '<div class="actions">'
-        + '<button class="warn sm" data-act="cancel" data-n="' + it.number + '">取消任务</button>'
-        + '<button class="sec sm" data-act="delete" data-n="' + it.number + '">删除记录</button>'
-        + '</div></div>';
+        + '<div class="actions">' + actionsFor(it, st) + '</div></div>';
     });
     box.innerHTML = html;
     Array.prototype.forEach.call(box.querySelectorAll('button[data-act]'), function (b) {
       b.addEventListener('click', function () {
         var n = Number(b.getAttribute('data-n'));
         var it = items.find(function (x) { return x.number === n; });
-        if (it) cancel(n, it, b.getAttribute('data-act'));
+        if (it) runAction(it, b.getAttribute('data-act'));
       });
     });
   }
