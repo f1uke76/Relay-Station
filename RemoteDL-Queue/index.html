@@ -72,6 +72,14 @@
   .tokstat.bad { color: #ff9c8f; }
   .export { background: #14171d; border-radius: 10px; padding: 12px; margin-top: 10px; }
   .export .link { font: 11px/1.5 ui-monospace, monospace; color: #9aa0a6; word-break: break-all; margin: 8px 0; }
+  .modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+           padding: 18px; background: rgba(6, 8, 12, .72); }
+  .modal-card { width: 100%; max-width: 380px; background: #1a1d23; border: 1px solid #2a2e36;
+                border-radius: 12px; padding: 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+  .modal-card h3 { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: #e8eaed; }
+  .modal-card p { font-size: 12px; line-height: 1.7; color: #9aa0a6; margin: 0 0 4px; }
+  .modal-card .row { margin-top: 10px; }
+  .modal.hide { display: none; }
   .hide { display: none; }
 </style>
 </head>
@@ -237,6 +245,21 @@
   </div>
 </div>
 
+<div class="modal hide" id="delModal">
+  <div class="modal-card">
+    <h3>删除令牌</h3>
+    <p>只删本机：清掉这台设备的令牌，私有库 <code>pat.md</code> 的登记和其它设备都保留。</p>
+    <p>删除所有：清掉本机令牌，并把 <code>pat.md</code> 登记清空，其它设备下次打开时同步删除。</p>
+    <div class="row">
+      <button class="sec" id="aDelLocal">仅删本机</button>
+      <button class="warn" id="aDelAll">删除所有</button>
+    </div>
+    <div class="row">
+      <button class="sec" id="aDelCancel">取消</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
   var OWNER = 'f1uke76';
@@ -376,7 +399,7 @@
         $('exportBox').className = 'export';
         tokMsg('已展开导出面板，复制配置链接发到其它设备即可自动填好');
       });
-      $('aDelete').addEventListener('click', deleteToken);
+      $('aDelete').addEventListener('click', openDelDialog);
     }
   }
   $('token').addEventListener('input', renderPat);
@@ -390,6 +413,12 @@
   });
   $('btnCopyRawToken').addEventListener('click', function () {
     write(token, '令牌已复制');
+  });
+  $('aDelLocal').addEventListener('click', deleteLocalOnly);
+  $('aDelAll').addEventListener('click', deleteToken);
+  $('aDelCancel').addEventListener('click', closeDelDialog);
+  $('delModal').addEventListener('click', function (e) {
+    if (e.target === $('delModal')) closeDelDialog();
   });
 
   function openPatPage() {
@@ -482,7 +511,31 @@
     setTokStat(note, false);
     tokMsg(note);
   }
+  /** 删除前的选择弹窗：只删本机 / 连 pat.md 登记一起删。 */
+  function openDelDialog() {
+    $('delModal').className = 'modal';
+  }
+  function closeDelDialog() {
+    $('delModal').className = 'modal hide';
+  }
+  /**
+   * 只删本机：不动 pat.md 登记，其它端照常。
+   * 同时把本地时间戳写成当前时间，避免下次刷新被更旧的登记反填。
+   */
+  function deleteLocalOnly() {
+    closeDelDialog();
+    tokenTs = Date.now();
+    localStorage.setItem('rdl_token_ts', String(tokenTs));
+    token = '';
+    localStorage.removeItem('rdl_token');
+    $('token').value = '';
+    renderPat();
+    setTokStat('未配置：本机令牌已删除，pat.md 登记仍在，其它设备不受影响', false);
+    tokMsg('已删除本机令牌（pat.md 登记保留）');
+    refresh();
+  }
   async function deleteToken() {
+    closeDelDialog();
     var old = token;
     try { await writeRegistry(old, 'web', Date.now(), true); }
     catch (e) { tokMsg('本地已删除；清空登记失败：' + e.message, true); }
@@ -491,7 +544,7 @@
     $('token').value = '';
     renderPat();
     setTokStat('', false);
-    tokMsg('已删除本机令牌并清空 pat.md 登记');
+    tokMsg('已删除本机令牌并清空 pat.md 登记；其它设备下次打开会同步删除');
     refresh();
   }
   /** 其它端删除令牌并清空 pat.md 后，本机同步删除（不写回，避免循环）。 */
