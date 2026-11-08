@@ -120,6 +120,84 @@
     <div class="msg" id="tokMsg"></div>
     <div class="tokstat" id="tokStat"></div>
 
+    <details id="patGuide">
+      <summary>PAT 填写指引 · 逐项怎么填 / 对应什么效果</summary>
+      <p class="hint">先用 <b>f1uke76</b> 账号登录 GitHub，再点「一键获取令牌」打开预填创建页。
+        链接已预填名称、无期限和两项权限，<b>但「Repository access」仓库范围必须自己确认</b> —— 这是最常见的 403 原因。</p>
+      <div class="wiz" style="margin-top:10px">
+        <div class="wiz-step">
+          <span class="wiz-n">1</span>
+          <div>
+            <div class="wiz-t">Token name / Description：随便填</div>
+            <div class="wiz-d">预填的是 <code>RemoteDL</code>。只是给自己辨认用，不影响功能，也不用和别人一致。</div>
+          </div>
+        </div>
+        <div class="wiz-step">
+          <span class="wiz-n">2</span>
+          <div>
+            <div class="wiz-t">Resource owner：选 f1uke76（本人）</div>
+            <div class="wiz-d">选成组织会列不出这两个仓库，后面就没法勾仓库范围。</div>
+          </div>
+        </div>
+        <div class="wiz-step">
+          <span class="wiz-n">3</span>
+          <div>
+            <div class="wiz-t">Expiration：选 No expiration（无期限）</div>
+            <div class="wiz-d">GitHub 会黄字提醒设有效期，个人自用可忽略。若选 30 / 90 天：到期后网页与 App 全部报 401，
+              要重新生成并重新保存；新令牌会覆盖 <code>pat.md</code>，其它端启动时自动同步。</div>
+          </div>
+        </div>
+        <div class="wiz-step">
+          <span class="wiz-n">4</span>
+          <div>
+            <div class="wiz-t">Repository access：两个仓库都要覆盖</div>
+            <div class="wiz-d">照截图选 <b>All repositories</b> 最省事：一次覆盖现有和以后新增的仓库，但权限面较大。
+              也可选 <b>Only select repositories</b> 只勾 <code>RemoteDL</code> + <code>Relay-Station</code>（权限最小，
+              以后加新仓库要回来补勾）。<br>
+              只勾 <code>RemoteDL</code> → <code>pat.md</code> 能读写，但添加链接 / 进度回传 403；
+              只勾 <code>Relay-Station</code> → 队列能写，但「保存」写 <code>pat.md</code> 失败，其它设备拿不到令牌。</div>
+          </div>
+        </div>
+        <div class="wiz-step">
+          <span class="wiz-n">5</span>
+          <div>
+            <div class="wiz-t">Issues：Read and write</div>
+            <div class="wiz-d">用于本页创建下载 Issue、取消 / 删除记录，以及 App 每约 5 秒 PATCH 回写进度。
+              只给 Read → 列表还能刷新，但加不了链接、进度写不回去；完全不勾 → App 仍可匿名读队列继续下载，
+              但所有写操作都失效。</div>
+          </div>
+        </div>
+        <div class="wiz-step">
+          <span class="wiz-n">6</span>
+          <div>
+            <div class="wiz-t">Contents：Read and write</div>
+            <div class="wiz-d">用于读写私有库 <code>pat.md</code>：保存登记、删除清空、其它端启动同步。
+              只给 Read → 「验证」能读到文件，但「保存」会因写权限不足失败。</div>
+          </div>
+        </div>
+        <div class="wiz-step">
+          <span class="wiz-n">7</span>
+          <div>
+            <div class="wiz-t">Metadata：Access: Read-only</div>
+            <div class="wiz-d">GitHub 强制的必备项，页面已自动带上，不用改；其余权限保持 No access 即可。</div>
+          </div>
+        </div>
+        <div class="wiz-step">
+          <span class="wiz-n">8</span>
+          <div>
+            <div class="wiz-t">Generate token：复制整串，回来验证再保存</div>
+            <div class="wiz-d">令牌只显示一次，复制 <code>github_pat_...</code> 整串 → 粘贴到本页或 App →
+              「验证」（看账号、有效期、中转库与 <code>pat.md</code> 是否可读）→「保存」（覆盖写 <code>pat.md</code>）。
+              其它设备打开 <code>pat.md</code> 复制同一串即可，<b>不要重复生成</b>。</div>
+          </div>
+        </div>
+      </div>
+      <p class="hint"><b>已有令牌不用重建</b>：到 GitHub 编辑这枚令牌，补勾两个仓库与 Issues / Contents 两项权限，
+        令牌字符串不变，各端无需重新填写。</p>
+      <p class="hint"><b>安全</b>：<code>pat.md</code> 是明文且留在 git 历史里，私有库切勿转公开；
+        泄露就去 GitHub 撤销（Revoke），并在各端点「删除」。</p>
+    </details>
+
     <details>
       <summary>双库职责与令牌复制方式</summary>
       <p class="hint">公开库 <a href="https://github.com/f1uke76/Relay-Station" target="_blank" rel="noopener">Relay-Station</a>
@@ -131,7 +209,8 @@
         登录后复制「当前令牌」那一串字符，回到本页粘进令牌框，点「验证」再点「保存」。App 里对应的是
         「打开 pat.md 复制令牌」按钮。不做任何自动读取，令牌始终由你亲自复制填写。</p>
       <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>Relay-Station</b>，
-        权限勾 <b>Issues: Read and write</b> 与 <b>Contents: Read and write</b>（前者用于创建/修改 Issue 和回传进度，后者用于写 pat.md）。</p>
+        权限勾 <b>Issues: Read and write</b> 与 <b>Contents: Read and write</b>（前者用于创建/修改 Issue 和回传进度，后者用于写 pat.md）。
+        每个字段该填什么、填错会怎样，见上方「PAT 填写指引」。</p>
       <p class="hint"><b>安全</b>：pat.md 含明文令牌且留在 git 历史里，私有库切勿转公开；令牌泄露就撤销，并在各端点「删除」。
         公开中转库的 Issues 匿名可读，App 不配令牌也能下载，但别把带签名参数的私密链接放进去。</p>
     </details>
@@ -276,7 +355,8 @@
     if (state !== 'saved') $('exportBox').className = 'export hide';
     var h = '';
     if (state === 'empty') {
-      h = '<button id="aGet">一键获取令牌</button><button class="sec" id="aPaste">从剪贴板导入</button>';
+      h = '<button id="aGet">一键获取令牌</button><button class="sec" id="aPaste">从剪贴板导入</button>'
+        + '<button class="sec" id="aGuide">填写指引</button>';
     } else if (state === 'filled') {
       h = '<button id="aVerify">验证</button><button class="sec" id="aSave">保存</button>';
     } else {
@@ -287,6 +367,7 @@
     if (state === 'empty') {
       $('aGet').addEventListener('click', openPatPage);
       $('aPaste').addEventListener('click', pasteIntoBox);
+      $('aGuide').addEventListener('click', openPatGuide);
     } else if (state === 'filled') {
       $('aVerify').addEventListener('click', verifyTyped);
       $('aSave').addEventListener('click', saveTyped);
@@ -316,7 +397,15 @@
 
   function openPatPage() {
     window.open(PAT_LINK, '_blank', 'noopener');
-    tokMsg('已打开预填创建页：生成时仓库选 RemoteDL + Relay-Station，复制后回来导入');
+    tokMsg('已打开预填创建页：仓库范围勾 RemoteDL + Relay-Station（或 All repositories），'
+      + 'Issues / Contents 均为 Read and write → Generate token → 复制整串回来导入；点「填写指引」看逐项效果');
+  }
+  /** 展开 PAT 逐项填写指引，并滚到说明处。 */
+  function openPatGuide() {
+    var d = $('patGuide');
+    d.open = true;
+    if (d.scrollIntoView) d.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    tokMsg('按指引逐项确认；最关键是 Repository access 必须覆盖两个仓库');
   }
   async function pasteIntoBox() {
     if (!navigator.clipboard || !navigator.clipboard.readText) {
@@ -486,7 +575,7 @@
         body: JSON.stringify({ title: title, body: body }) });
       if (!r.ok) {
         var why = r.status === 401 ? '令牌无效或已过期'
-                : r.status === 403 ? '令牌缺少中转库 Issues 写权限：到 GitHub 编辑该令牌，仓库勾 Relay-Station + RemoteDL，权限勾 Issues 与 Contents 的 Read and write'
+                : r.status === 403 ? '令牌缺少中转库 Issues 写权限：到 GitHub 编辑该令牌，仓库勾 Relay-Station + RemoteDL，权限勾 Issues 与 Contents 的 Read and write（逐项见「PAT 填写指引」）'
                 : '';
         throw new Error('HTTP ' + r.status + (why ? '（' + why + '）' : ''));
       }
@@ -564,7 +653,7 @@
       if (r.status === 403) throw new Error('API 限流，稍后再试');
       if (!r.ok) {
         var why = r.status === 401 ? '令牌无效或已过期'
-                : r.status === 403 ? '令牌缺少中转库 Issues 写权限：到 GitHub 编辑该令牌，仓库勾 Relay-Station + RemoteDL，权限勾 Issues 与 Contents 的 Read and write'
+                : r.status === 403 ? '令牌缺少中转库 Issues 写权限：到 GitHub 编辑该令牌，仓库勾 Relay-Station + RemoteDL，权限勾 Issues 与 Contents 的 Read and write（逐项见「PAT 填写指引」）'
                 : '';
         throw new Error('HTTP ' + r.status + (why ? '（' + why + '）' : ''));
       }
