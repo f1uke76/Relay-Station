@@ -78,7 +78,7 @@
 <body>
 <div class="wrap">
   <h1>远程下载 · 控制台</h1>
-  <div class="sub">私有代码库 <code>RemoteDL</code> 存令牌与产物 · 中转库 <code>RemoteDL-Relay</code> 只放 Issues</div>
+  <div class="sub">公开中转库 <code>RemoteDL-Queue</code> 托管本站 + Issues 队列 · 私有库 <code>RemoteDL</code> 存源码、产物与 <code>pat.md</code></div>
 
   <div class="card">
     <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
@@ -88,14 +88,14 @@
         <span class="wiz-n">1</span>
         <div>
           <div class="wiz-t">一端获取主令牌</div>
-          <div class="wiz-d">跳转到预填好的 GitHub 创建页，生成后复制回来；点「保存」即写入私有库 <code>pat.md</code>。</div>
+          <div class="wiz-d">跳转到预填好的 GitHub 创建页生成令牌，复制回来点「保存」，即写入私有库 <code>pat.md</code>。</div>
         </div>
       </div>
       <div class="wiz-step">
         <span class="wiz-n">2</span>
         <div>
-          <div class="wiz-t">其它端启动自动获取</div>
-          <div class="wiz-d">配置好只读引导令牌后，其它设备的网页与 App 启动时会自己读 <code>pat.md</code> 并填好，无需任何操作。</div>
+          <div class="wiz-t">其它端：手动复制填写</div>
+          <div class="wiz-d">点下面的「打开私有库 pat.md」→ 登录后复制「当前令牌」→ 粘到本页或 App 的令牌框 → 验证 → 保存。已配置过的端会自动同步最新令牌。</div>
         </div>
       </div>
     </div>
@@ -104,6 +104,10 @@
       <input type="password" id="token" placeholder="github_pat_...（粘贴或点从剪贴板导入）" autocomplete="off">
     </div>
     <div class="row" id="patActions"></div>
+    <div class="row">
+      <button class="sec sm" id="btnVaultDoc">打开私有库 pat.md（复制令牌）</button>
+      <button class="sec sm" id="btnVaultHome">打开私有代码库</button>
+    </div>
     <div class="export hide" id="exportBox">
       <div class="wiz-t">导出到其他设备</div>
       <div class="hint" style="margin-top:4px">备用通道：配置链接内含令牌，只发给你自己的设备；打开即自动填写。</div>
@@ -117,19 +121,19 @@
     <div class="tokstat" id="tokStat"></div>
 
     <details>
-      <summary>引导令牌与三库职责</summary>
-      <p class="hint">私有库 <code>RemoteDL</code> 存 <code>pat.md</code>、网页源码、Android 源码与 APK；
-        公开中转库 <code>RemoteDL-Relay</code> <b>只有 Issues</b>，用于指令中转，不托管网站、不放任何网站地址；
-        本网页由公开仓库 <code>RemoteDL-Queue</code> 的 Pages 提供。</p>
-      <p class="hint">私有库必须带凭证才能读。启动时本页先匿名读
-        <a href="https://f1uke76.github.io/RemoteDL-Queue/bootstrap.json" target="_blank" rel="noopener">bootstrap.json</a>
-        拿到一枚<b>只读引导令牌</b>，再用它读 <code>pat.md</code> 取出主令牌并自动保存。
-        引导令牌还没配置时，会降级成「一键获取 / 从剪贴板导入」和导出链接。</p>
-      <p class="hint"><a href="https://github.com/settings/personal-access-tokens/new?name=RemoteDL-Bootstrap&description=Read-only%20bootstrap%20for%20pat.md&target_name=f1uke76&expires_in=none&contents=read" target="_blank" rel="noopener">生成只读引导令牌</a>：
-        只选 <b>RemoteDL</b> 仓库、只给 <b>Contents: Read</b>，生成后把令牌写进上面那个 <code>bootstrap.json</code> 的 <code>bootstrap</code> 字段。
-        所有端下次启动即自动获得主令牌，无需重新编译或重新安装。</p>
-      <p class="hint"><b>安全</b>：引导令牌是公开的、可读 <code>pat.md</code>，所以主令牌等同可被拿到该引导令牌的人读取。
-        请只给主令牌必要的权限（中转库 Issues 写 + 私有库 Contents 写），并定期轮换。</p>
+      <summary>双库职责与令牌复制方式</summary>
+      <p class="hint">公开库 <a href="https://github.com/f1uke76/RemoteDL-Queue" target="_blank" rel="noopener">RemoteDL-Queue</a>
+        是<b>指令中转专用站</b>：托管本网页，并用 Issues 承载下载指令队列；后续其它中转需求也复用它。
+        私有库 <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">RemoteDL</a>
+        只存 Android 源码、APK 产物、控制台源码副本与
+        <a href="https://github.com/f1uke76/RemoteDL/blob/main/pat.md" target="_blank" rel="noopener">pat.md</a>。</p>
+      <p class="hint">私有库必须登录 GitHub 才能查看。任一网页或 App 首次使用时，点上面「打开私有库 pat.md」，
+        登录后复制「当前令牌」那一串字符，回到本页粘进令牌框，点「验证」再点「保存」。App 里对应的是
+        「打开 pat.md 复制令牌」按钮。不做任何自动读取，令牌始终由你亲自复制填写。</p>
+      <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>RemoteDL-Queue</b>，
+        权限勾 <b>Issues: Read and write</b> 与 <b>Contents: Read and write</b>（前者用于创建/修改 Issue 和回传进度，后者用于写 pat.md）。</p>
+      <p class="hint"><b>安全</b>：pat.md 含明文令牌且留在 git 历史里，私有库切勿转公开；令牌泄露就撤销，并在各端点「删除」。
+        公开中转库的 Issues 匿名可读，App 不配令牌也能下载，但别把带签名参数的私密链接放进去。</p>
     </details>
   </div>
 
@@ -158,11 +162,12 @@
 <script>
 (function () {
   var OWNER = 'f1uke76';
-  var RELAY = 'RemoteDL-Relay';
+  var QUEUE = 'RemoteDL-Queue';
   var VAULT = 'RemoteDL';
-  var API = 'https://api.github.com/repos/' + OWNER + '/' + RELAY + '/issues';
+  var API = 'https://api.github.com/repos/' + OWNER + '/' + QUEUE + '/issues';
   var PAT_DOC = 'https://api.github.com/repos/' + OWNER + '/' + VAULT + '/contents/pat.md';
-  var BOOTSTRAP_URL = 'https://f1uke76.github.io/RemoteDL-Queue/bootstrap.json';
+  var PAT_DOC_WEB = 'https://github.com/' + OWNER + '/' + VAULT + '/blob/main/pat.md';
+  var VAULT_WEB = 'https://github.com/' + OWNER + '/' + VAULT;
   var WEB_URL = 'https://f1uke76.github.io/RemoteDL-Queue/';
   var $ = function (id) { return document.getElementById(id); };
   var token = localStorage.getItem('rdl_token') || '';
@@ -245,8 +250,10 @@
   function registryDoc(t, by, ts) {
     return '# RemoteDL 令牌登记\n\n'
       + '> 本文件位于私有仓库，含明文令牌。切勿将仓库转为公开。\n\n'
+      + '> 其它设备：打开本文件，复制下面「当前令牌」的整串字符，\n'
+      + '> 粘贴到控制台网页或 App 的令牌框里，点「验证」再点「保存」。\n\n'
       + (t ? '- 当前令牌：`' + t + '`\n- 登记时间：' + new Date(ts).toLocaleString('zh-CN')
-              + '\n- 来源端：' + by + '\n- 权限：中转库 Issues 写 + 私有库 Contents 写\n'
+              + '\n- 来源端：' + by + '\n- 权限：RemoteDL-Queue Issues 写 + RemoteDL Contents 写\n'
            : '- 当前状态：已清空（无有效登记）\n')
       + '\n<!--RDL-PAT:{"token":' + JSON.stringify(t || '')
       + ',"ts":' + ts + ',"by":' + JSON.stringify(by || '') + '}-->\n';
@@ -292,6 +299,13 @@
     }
   }
   $('token').addEventListener('input', renderPat);
+  $('btnVaultDoc').addEventListener('click', function () {
+    window.open(PAT_DOC_WEB, '_blank', 'noopener');
+    tokMsg('在 pat.md 里复制「当前令牌」，回来粘贴后点「验证 / 保存」');
+  });
+  $('btnVaultHome').addEventListener('click', function () {
+    window.open(VAULT_WEB, '_blank', 'noopener');
+  });
   $('btnCopyShare').addEventListener('click', function () {
     write(WEB_URL + '#pat=' + encodeURIComponent(token), '配置链接已复制');
   });
@@ -301,7 +315,7 @@
 
   function openPatPage() {
     window.open(PAT_LINK, '_blank', 'noopener');
-    tokMsg('已打开预填创建页：生成时仓库选 RemoteDL + RemoteDL-Relay，复制后回来导入');
+    tokMsg('已打开预填创建页：生成时仓库选 RemoteDL + RemoteDL-Queue，复制后回来导入');
   }
   async function pasteIntoBox() {
     if (!navigator.clipboard || !navigator.clipboard.readText) {
@@ -358,7 +372,7 @@
     try {
       tokMsg('正在登记到私有库 pat.md…');
       await writeRegistry(t, 'web', ts, false);
-      adopt(t, ts, '已保存并登记到 pat.md，其它端启动时会自动获取');
+      adopt(t, ts, '已保存并登记到 pat.md；其它设备打开 pat.md 手动复制即可');
       refresh();
     } catch (e) { tokMsg(e.message, true); setTokStat('保存失败：' + e.message, true); }
   }
@@ -394,42 +408,8 @@
     } catch (e) {}
   }
 
-  /** 启动时主动去 pat.md 取已有令牌：匿名读引导配置 → 只读引导令牌读 pat.md。 */
-  async function autoAcquire() {
-    var cfg;
-    try {
-      var r = await fetch(BOOTSTRAP_URL + '?_t=' + Date.now(), { cache: 'no-store' });
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      cfg = await r.json();
-    } catch (e) {
-      setTokStat('引导配置不可读，请用「一键获取」或导出链接', false);
-      return false;
-    }
-    var boot = tokenLike(cfg && cfg.bootstrap);
-    if (!boot) {
-      setTokStat('尚未配置只读引导令牌：点下方「生成只读引导令牌」并写入 bootstrap.json', false);
-      return false;
-    }
-    try {
-      var out = await readRegistry(boot);
-      if (out.error || !out.reg || !out.reg.token) {
-        setTokStat('引导令牌可读，但 pat.md 里还没有登记主令牌', false);
-        return false;
-      }
-      if (out.reg.token === token) {
-        setTokStat('已从 pat.md 确认主令牌有效', false);
-        return true;
-      }
-      adopt(out.reg.token, Number(out.reg.ts) || Date.now(), '已自动从私有库 pat.md 获取主令牌');
-      refresh();
-      return true;
-    } catch (e) {
-      setTokStat('自动获取失败：' + e.message, true);
-      return false;
-    }
-  }
-
-  async function bootstrap() {
+  /** 启动：只处理配置链接；令牌一律由用户从 pat.md 手动复制填写。 */
+  function init() {
     var m = /^#pat=(.+)$/.exec(location.hash);
     if (m) {
       var t = tokenLike(decodeURIComponent(m[1]));
@@ -444,8 +424,9 @@
     }
     renderPat();
     if (token) { syncFromRegistry(); return; }
-    setTokStat('启动时正在主动读取 pat.md…', false);
-    await autoAcquire();
+    if (!$('token').value.trim()) {
+      setTokStat('未配置：点「打开私有库 pat.md」复制令牌粘贴，或「一键获取令牌」新建', false);
+    }
   }
 
   $('btnAdd').addEventListener('click', async function () {
@@ -465,7 +446,7 @@
     } catch (e) { msg('提交失败：' + e.message, true); }
   });
   $('btnOpenIssues').addEventListener('click', function () {
-    window.open('https://github.com/' + OWNER + '/' + RELAY + '/issues', '_blank', 'noopener');
+    window.open('https://github.com/' + OWNER + '/' + QUEUE + '/issues', '_blank', 'noopener');
   });
 
   async function cancel(n, item, mode) {
@@ -534,7 +515,7 @@
       if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? '（令牌无效）' : ''));
       var items = await r.json();
       render(items);
-      $('statusLine').textContent = '中转库 ' + RELAY + ' · 共 ' + items.length + ' 条 · 上次刷新 '
+      $('statusLine').textContent = '中转库 ' + QUEUE + ' · 共 ' + items.length + ' 条 · 上次刷新 '
         + new Date().toLocaleTimeString('zh-CN') + ' · 自动刷新'
         + (autoOn ? '每 5 秒' : '已关闭');
     } catch (e) {
@@ -555,7 +536,7 @@
     if (autoOn) timer = setInterval(refresh, REFRESH_MS);
   }
 
-  bootstrap();
+  init();
   $('btnAuto').textContent = '自动刷新：' + (autoOn ? '开' : '关');
   setupTimer();
   refresh();
