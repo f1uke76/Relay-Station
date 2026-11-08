@@ -78,7 +78,7 @@
 <body>
 <div class="wrap">
   <h1>远程下载 · 控制台</h1>
-  <div class="sub">私有仓库 <code>f1uke76/RemoteDL</code> · 指令队列 / 代码 / 产物 / 令牌登记</div>
+  <div class="sub">私有代码库 <code>RemoteDL</code> 存令牌与产物 · 中转库 <code>RemoteDL-Relay</code> 只放 Issues</div>
 
   <div class="card">
     <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
@@ -87,15 +87,15 @@
       <div class="wiz-step">
         <span class="wiz-n">1</span>
         <div>
-          <div class="wiz-t">一键获取写入令牌</div>
-          <div class="wiz-d">跳转到 GitHub 创建页，名称、仓库属主、Issues 与 Contents 读写、有效期都已预填；未登录会先带你到登录页。</div>
+          <div class="wiz-t">一端获取主令牌</div>
+          <div class="wiz-d">跳转到预填好的 GitHub 创建页，生成后复制回来；点「保存」即写入私有库 <code>pat.md</code>。</div>
         </div>
       </div>
       <div class="wiz-step">
         <span class="wiz-n">2</span>
         <div>
-          <div class="wiz-t">生成并复制后回来</div>
-          <div class="wiz-d">点「验证」确认可用，再点「保存」登记到私有库；之后其它设备可用「导出」的一键配置链接自动填好。</div>
+          <div class="wiz-t">其它端启动自动获取</div>
+          <div class="wiz-d">配置好只读引导令牌后，其它设备的网页与 App 启动时会自己读 <code>pat.md</code> 并填好，无需任何操作。</div>
         </div>
       </div>
     </div>
@@ -106,7 +106,7 @@
     <div class="row" id="patActions"></div>
     <div class="export hide" id="exportBox">
       <div class="wiz-t">导出到其他设备</div>
-      <div class="hint" style="margin-top:4px">配置链接内含令牌，只发给你自己的设备；打开链接会自动填写并保存。不要转发给别人。</div>
+      <div class="hint" style="margin-top:4px">备用通道：配置链接内含令牌，只发给你自己的设备；打开即自动填写。</div>
       <div class="link" id="shareLink"></div>
       <div class="row">
         <button class="sec sm" id="btnCopyShare">复制一键配置链接</button>
@@ -117,15 +117,19 @@
     <div class="tokstat" id="tokStat"></div>
 
     <details>
-      <summary>令牌与私有库说明</summary>
-      <p class="hint">保存后令牌会写进私有库的 <code>pat.md</code>，其他端在已持有令牌时会自动比对并同步最新登记。
-        私有库所有内容都需要认证，因此<strong>全新设备首次仍需要一次「一键获取」或打开导出链接</strong>——
-        零凭证读取私有库在 GitHub 上不允许（等价于把令牌公开）。</p>
-      <p class="hint">令牌只存本机浏览器与手机 App 私有偏好，不进公开控制台仓库、不进 APK。
-        预填链接含 <code>name=RemoteDL</code>、<code>target_name=f1uke76</code>、<code>issues=write</code>、
-        <code>contents=write</code>（写 pat.md 必须）、<code>expires_in=none</code>；
-        生成前请确认 Repository access 只选 <b>RemoteDL</b>。</p>
-      <p class="hint"><b>pat.md 含明文令牌</b>：私有库只有你本人可见，但切勿把仓库转为公开；撤销令牌后请点「删除」清空登记。</p>
+      <summary>引导令牌与三库职责</summary>
+      <p class="hint">私有库 <code>RemoteDL</code> 存 <code>pat.md</code>、网页源码、Android 源码与 APK；
+        公开中转库 <code>RemoteDL-Relay</code> <b>只有 Issues</b>，用于指令中转，不托管网站、不放任何网站地址；
+        本网页由公开仓库 <code>RemoteDL-Queue</code> 的 Pages 提供。</p>
+      <p class="hint">私有库必须带凭证才能读。启动时本页先匿名读
+        <a href="https://f1uke76.github.io/RemoteDL-Queue/bootstrap.json" target="_blank" rel="noopener">bootstrap.json</a>
+        拿到一枚<b>只读引导令牌</b>，再用它读 <code>pat.md</code> 取出主令牌并自动保存。
+        引导令牌还没配置时，会降级成「一键获取 / 从剪贴板导入」和导出链接。</p>
+      <p class="hint"><a href="https://github.com/settings/personal-access-tokens/new?name=RemoteDL-Bootstrap&description=Read-only%20bootstrap%20for%20pat.md&target_name=f1uke76&expires_in=none&contents=read" target="_blank" rel="noopener">生成只读引导令牌</a>：
+        只选 <b>RemoteDL</b> 仓库、只给 <b>Contents: Read</b>，生成后把令牌写进上面那个 <code>bootstrap.json</code> 的 <code>bootstrap</code> 字段。
+        所有端下次启动即自动获得主令牌，无需重新编译或重新安装。</p>
+      <p class="hint"><b>安全</b>：引导令牌是公开的、可读 <code>pat.md</code>，所以主令牌等同可被拿到该引导令牌的人读取。
+        请只给主令牌必要的权限（中转库 Issues 写 + 私有库 Contents 写），并定期轮换。</p>
     </details>
   </div>
 
@@ -138,7 +142,7 @@
       <button class="sec" id="btnOpenIssues">在 GitHub 查看</button>
     </div>
     <div class="msg" id="msg"></div>
-    <p class="hint">配置令牌后直接在本页创建 Issue，不跳转、不离开当前页面。App 下次检查或点「立即获取链接」时开始下载。</p>
+    <p class="hint">配置主令牌后直接在本页创建 Issue，不跳转、不离开当前页面。App 下次检查或点「立即获取链接」时开始下载。</p>
   </div>
 
   <div class="card">
@@ -149,25 +153,16 @@
     <div id="list"><div class="empty">读取中…</div></div>
     <div class="status-line" id="statusLine">—</div>
   </div>
-
-  <div class="card">
-    <h2>存储库与地址</h2>
-    <p class="hint" style="margin-top:0">控制台（公开，只放网页）：<br><a href="https://f1uke76.github.io/RemoteDL-Queue/">https://f1uke76.github.io/RemoteDL-Queue/</a></p>
-    <p class="hint">私有存储库：<br><a href="https://github.com/f1uke76/RemoteDL">https://github.com/f1uke76/RemoteDL</a><br>
-      队列 Issues · <code>pat.md</code> 令牌登记 · <code>console/</code> 控制台源码 · <code>app/</code> Android 源码 · <code>apk/</code> 安装包 · <code>dl.txt</code> 备用指令文件</p>
-    <details>
-      <summary>工作原理</summary>
-      <p class="hint">进度由 App 每约 5 秒写回对应 Issue 的隐藏注释 <code>&lt;!--RDL:{...}--&gt;</code>，本页自动解析。
-        私有库的 Issues 与文件都需要令牌，未配置时请先看上方「连接 GitHub」。</p>
-    </details>
-  </div>
 </div>
 
 <script>
 (function () {
-  var OWNER = 'f1uke76', REPO = 'RemoteDL';
-  var API = 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/issues';
-  var PAT_DOC = 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/pat.md';
+  var OWNER = 'f1uke76';
+  var RELAY = 'RemoteDL-Relay';
+  var VAULT = 'RemoteDL';
+  var API = 'https://api.github.com/repos/' + OWNER + '/' + RELAY + '/issues';
+  var PAT_DOC = 'https://api.github.com/repos/' + OWNER + '/' + VAULT + '/contents/pat.md';
+  var BOOTSTRAP_URL = 'https://f1uke76.github.io/RemoteDL-Queue/bootstrap.json';
   var WEB_URL = 'https://f1uke76.github.io/RemoteDL-Queue/';
   var $ = function (id) { return document.getElementById(id); };
   var token = localStorage.getItem('rdl_token') || '';
@@ -178,7 +173,7 @@
 
   var PAT_LINK = 'https://github.com/settings/personal-access-tokens/new'
     + '?name=' + encodeURIComponent('RemoteDL')
-    + '&description=' + encodeURIComponent('RemoteDL private queue, registry and artifacts')
+    + '&description=' + encodeURIComponent('RemoteDL relay issues + private pat.md')
     + '&target_name=' + encodeURIComponent(OWNER)
     + '&expires_in=none'
     + '&issues=write'
@@ -249,9 +244,9 @@
   }
   function registryDoc(t, by, ts) {
     return '# RemoteDL 令牌登记\n\n'
-      + '> 本文件位于私有仓库，含明文令牌。切勿将仓库转为公开；撤销令牌后请点「删除」清空本文件。\n\n'
+      + '> 本文件位于私有仓库，含明文令牌。切勿将仓库转为公开。\n\n'
       + (t ? '- 当前令牌：`' + t + '`\n- 登记时间：' + new Date(ts).toLocaleString('zh-CN')
-              + '\n- 来源端：' + by + '\n- 权限：RemoteDL 仓库 Issues + Contents 读写\n'
+              + '\n- 来源端：' + by + '\n- 权限：中转库 Issues 写 + 私有库 Contents 写\n'
            : '- 当前状态：已清空（无有效登记）\n')
       + '\n<!--RDL-PAT:{"token":' + JSON.stringify(t || '')
       + ',"ts":' + ts + ',"by":' + JSON.stringify(by || '') + '}-->\n';
@@ -291,23 +286,22 @@
     } else {
       $('aExport').addEventListener('click', function () {
         $('exportBox').className = 'export';
-        tokMsg('已展开导出面板，复制配置链接发到你的其他设备即可自动填好');
+        tokMsg('已展开导出面板，复制配置链接发到其它设备即可自动填好');
       });
       $('aDelete').addEventListener('click', deleteToken);
     }
   }
   $('token').addEventListener('input', renderPat);
   $('btnCopyShare').addEventListener('click', function () {
-    write(WEB_URL + '#pat=' + encodeURIComponent(token), '配置链接已复制，在另一台设备打开即自动填写');
+    write(WEB_URL + '#pat=' + encodeURIComponent(token), '配置链接已复制');
   });
   $('btnCopyRawToken').addEventListener('click', function () {
-    write(token, '令牌已复制，可到手机 App 点「从剪贴板导入」');
+    write(token, '令牌已复制');
   });
 
   function openPatPage() {
-    sessionStorage.setItem('rdl_pending', '1');
     window.open(PAT_LINK, '_blank', 'noopener');
-    tokMsg('已打开 GitHub 令牌创建页（含 Contents 写权限）。生成并复制后回来粘贴或点导入。');
+    tokMsg('已打开预填创建页：生成时仓库选 RemoteDL + RemoteDL-Relay，复制后回来导入');
   }
   async function pasteIntoBox() {
     if (!navigator.clipboard || !navigator.clipboard.readText) {
@@ -319,7 +313,7 @@
       $('token').value = t;
       renderPat();
       tokMsg('已填入令牌，点「验证」确认后再点「保存」');
-    } catch (e) { tokMsg('读取剪贴板失败（需浏览器授权）：' + e.message, true); }
+    } catch (e) { tokMsg('读取剪贴板失败：' + e.message, true); }
   }
   async function readRegistry(t) {
     var r = await fetch(PAT_DOC + '?ref=main&_t=' + Date.now(),
@@ -335,16 +329,14 @@
     if (cur.sha) body.sha = cur.sha;
     var r = await fetch(PAT_DOC, { method: 'PUT', headers: headers(t),
                                    body: JSON.stringify(body) });
-    if (!r.ok) throw new Error('登记失败 HTTP ' + r.status
-      + (r.status === 403 || r.status === 422 ? '（令牌需要 Contents 写权限）' : ''));
+    if (!r.ok) throw new Error('登记失败 HTTP ' + r.status + '（需要 Contents 写权限）');
   }
   async function verifyTyped() {
     var t = tokenLike($('token').value);
     if (!t) { tokMsg('请先填入有效的 GitHub 令牌', true); return; }
     setTokStat('校验中…', false);
     try {
-      var r = await fetch('https://api.github.com/user',
-        { headers: headers(t), cache: 'no-store' });
+      var r = await fetch('https://api.github.com/user', { headers: headers(t), cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? '（无效或已过期）' : ''));
       var u = await r.json();
       var s = '有效 · 账号 ' + (u.login || '?');
@@ -352,12 +344,12 @@
       if (exp) s += ' · 有效期至 ' + exp.slice(0, 10);
       var q = await fetch(API + '?state=all&per_page=1&_t=' + Date.now(),
                           { headers: headers(t), cache: 'no-store' });
-      s += q.ok ? ' · 私有队列可读' : ' · 私有队列读取失败(' + q.status + ')';
+      s += q.ok ? ' · 中转库可读' : ' · 中转库读取失败(' + q.status + ')';
       var reg = await readRegistry(t);
-      s += reg.error ? ' · pat.md 不可读' : (reg.reg && reg.reg.token ? ' · 库里已有登记' : ' · 库里暂无登记');
+      s += reg.error ? ' · pat.md 不可读' : ' · pat.md 可读';
       setTokStat(s, false);
       tokMsg('验证通过，点「保存」写入私有库 pat.md');
-    } catch (e) { setTokStat('校验失败：' + e.message, true); tokMsg('校验失败：' + e.message, true); }
+    } catch (e) { setTokStat('校验失败：' + e.message, true); }
   }
   async function saveTyped() {
     var t = tokenLike($('token').value);
@@ -366,21 +358,23 @@
     try {
       tokMsg('正在登记到私有库 pat.md…');
       await writeRegistry(t, 'web', ts, false);
-      token = t; tokenTs = ts;
-      localStorage.setItem('rdl_token', token);
-      localStorage.setItem('rdl_token_ts', String(ts));
-      sessionStorage.removeItem('rdl_pending');
-      $('token').value = '';
-      renderPat();
-      setTokStat('已保存并登记 · 令牌存本机浏览器', false);
-      tokMsg('保存成功，其它端会自动同步 pat.md 的最新登记');
+      adopt(t, ts, '已保存并登记到 pat.md，其它端启动时会自动获取');
       refresh();
     } catch (e) { tokMsg(e.message, true); setTokStat('保存失败：' + e.message, true); }
+  }
+  function adopt(t, ts, note) {
+    token = t; tokenTs = ts;
+    localStorage.setItem('rdl_token', token);
+    localStorage.setItem('rdl_token_ts', String(ts));
+    $('token').value = '';
+    renderPat();
+    setTokStat(note, false);
+    tokMsg(note);
   }
   async function deleteToken() {
     var old = token;
     try { await writeRegistry(old, 'web', Date.now(), true); }
-    catch (e) { tokMsg('本地已删除；清空库里登记失败：' + e.message, true); }
+    catch (e) { tokMsg('本地已删除；清空登记失败：' + e.message, true); }
     token = ''; tokenTs = 0;
     localStorage.removeItem('rdl_token'); localStorage.removeItem('rdl_token_ts');
     $('token').value = '';
@@ -394,15 +388,47 @@
       var out = await readRegistry(token);
       if (out.error || !out.reg || !out.reg.token) return;
       if (out.reg.token !== token && Number(out.reg.ts || 0) > tokenTs) {
-        token = out.reg.token; tokenTs = Number(out.reg.ts);
-        localStorage.setItem('rdl_token', token);
-        localStorage.setItem('rdl_token_ts', String(tokenTs));
-        renderPat();
-        setTokStat('已从 pat.md 同步最新令牌', false);
+        adopt(out.reg.token, Number(out.reg.ts), '已从 pat.md 同步最新令牌');
         refresh();
       }
     } catch (e) {}
   }
+
+  /** 启动时主动去 pat.md 取已有令牌：匿名读引导配置 → 只读引导令牌读 pat.md。 */
+  async function autoAcquire() {
+    var cfg;
+    try {
+      var r = await fetch(BOOTSTRAP_URL + '?_t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      cfg = await r.json();
+    } catch (e) {
+      setTokStat('引导配置不可读，请用「一键获取」或导出链接', false);
+      return false;
+    }
+    var boot = tokenLike(cfg && cfg.bootstrap);
+    if (!boot) {
+      setTokStat('尚未配置只读引导令牌：点下方「生成只读引导令牌」并写入 bootstrap.json', false);
+      return false;
+    }
+    try {
+      var out = await readRegistry(boot);
+      if (out.error || !out.reg || !out.reg.token) {
+        setTokStat('引导令牌可读，但 pat.md 里还没有登记主令牌', false);
+        return false;
+      }
+      if (out.reg.token === token) {
+        setTokStat('已从 pat.md 确认主令牌有效', false);
+        return true;
+      }
+      adopt(out.reg.token, Number(out.reg.ts) || Date.now(), '已自动从私有库 pat.md 获取主令牌');
+      refresh();
+      return true;
+    } catch (e) {
+      setTokStat('自动获取失败：' + e.message, true);
+      return false;
+    }
+  }
+
   async function bootstrap() {
     var m = /^#pat=(.+)$/.exec(location.hash);
     if (m) {
@@ -418,26 +444,14 @@
     }
     renderPat();
     if (token) { syncFromRegistry(); return; }
-    try {
-      var r = await fetch(PAT_DOC + '?ref=main&_t=' + Date.now(), { cache: 'no-store' });
-      if (r.ok) {
-        var j = await r.json();
-        var reg = parseRegistry(b64decode(j.content || ''));
-        if (reg && reg.token) {
-          $('token').value = reg.token;
-          renderPat();
-          tokMsg('已从 pat.md 自动获取令牌，点「验证」或「保存」');
-          return;
-        }
-      }
-      setTokStat('私有库需要令牌：用「一键获取」，或打开其它设备导出的配置链接', false);
-    } catch (e) { setTokStat('私有库需要令牌才能访问', false); }
+    setTokStat('启动时正在主动读取 pat.md…', false);
+    await autoAcquire();
   }
 
   $('btnAdd').addEventListener('click', async function () {
     var url = $('link').value.trim();
     if (!/^https?:\/\//i.test(url)) { msg('请填 http/https 开头的链接', true); return; }
-    if (!token) { msg('请先在上方配置令牌（私有库需要认证）', true); return; }
+    if (!token) { msg('请先在上方配置主令牌（提交 Issue 需要写权限）', true); return; }
     var line = 'ADD ' + url + ' #' + tag();
     var body = line + '\n<!--RDL:{"s":"queued","p":0}-->\n';
     var title = 'DL ' + new Date().toISOString().slice(0, 16).replace('T', ' ');
@@ -451,11 +465,11 @@
     } catch (e) { msg('提交失败：' + e.message, true); }
   });
   $('btnOpenIssues').addEventListener('click', function () {
-    window.open('https://github.com/' + OWNER + '/' + REPO + '/issues', '_blank', 'noopener');
+    window.open('https://github.com/' + OWNER + '/' + RELAY + '/issues', '_blank', 'noopener');
   });
 
   async function cancel(n, item, mode) {
-    if (!token) { msg('取消/删除需要先配置写入令牌', true); return; }
+    if (!token) { msg('取消/删除需要先配置主令牌', true); return; }
     var st = rdl(item.body) || { p: 0 };
     var body = rawFirstLine(item.body) + '\n<!--RDL:{"s":"' + (mode === 'cancel' ? 'canceled' : 'deleted')
       + '","p":' + (st.p || 0) + '}-->\n' + (mode === 'cancel' ? '<!--RDL-CANCEL-->\n' : '');
@@ -516,12 +530,11 @@
     try {
       var r = await fetch(API + '?state=all&per_page=100&_t=' + Date.now(),
         { headers: headers(), cache: 'no-store' });
-      if (r.status === 404 && !token) throw new Error('私有库需要令牌，请先在上方配置');
       if (r.status === 403) throw new Error('API 限流，稍后再试');
       if (!r.ok) throw new Error('HTTP ' + r.status + (r.status === 401 ? '（令牌无效）' : ''));
       var items = await r.json();
       render(items);
-      $('statusLine').textContent = '共 ' + items.length + ' 条 · 上次刷新 '
+      $('statusLine').textContent = '中转库 ' + RELAY + ' · 共 ' + items.length + ' 条 · 上次刷新 '
         + new Date().toLocaleTimeString('zh-CN') + ' · 自动刷新'
         + (autoOn ? '每 5 秒' : '已关闭');
     } catch (e) {
