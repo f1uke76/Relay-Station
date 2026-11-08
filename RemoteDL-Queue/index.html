@@ -37,6 +37,7 @@
   button:active { opacity: .75; }
   .hint { font-size: 12px; color: #8b919a; margin: 10px 0 0; }
   .msg { font-size: 12px; min-height: 18px; margin-top: 8px; color: #8ce0a8; }
+  .msg:empty, .tokstat:empty { display: none; }
   .msg.err { color: #ff9c8f; }
   a { color: #8ab4f8; }
   .item { border: 1px solid #2a2e36; border-radius: 10px; padding: 12px; margin-top: 10px; background: #14171d; }
@@ -108,29 +109,10 @@
 <body>
 <div class="wrap">
   <h1>远程下载 · 控制台</h1>
-  <div class="sub">通用中转库 <code>Relay-Station</code> · 本页 <code>RemoteDL-Queue</code> 控制台 · 私有库 <code>RemoteDL</code> 存源码、产物与 <code>pat.md</code></div>
-
   <div class="layout">
 
   <div class="card card-pat">
     <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
-
-    <div class="wiz hide" id="wizard">
-      <div class="wiz-step">
-        <span class="wiz-n">1</span>
-        <div>
-          <div class="wiz-t">一端获取主令牌</div>
-          <div class="wiz-d">跳转到预填好的 GitHub 创建页生成令牌，复制回来点「保存」，即写入私有库 <code>pat.md</code>。</div>
-        </div>
-      </div>
-      <div class="wiz-step">
-        <span class="wiz-n">2</span>
-        <div>
-          <div class="wiz-t">其它端：手动复制填写</div>
-          <div class="wiz-d">点下面的「查看 pat.md」→ 未登录会先跳登录页，登录后复制「当前令牌」→ 粘到本页或 App 的令牌框 → 验证 → 保存。已配置过的端会自动同步最新令牌。</div>
-        </div>
-      </div>
-    </div>
 
     <div class="tokline hide" id="tokenRow">
       <input type="password" id="token" placeholder="github_pat_...（粘贴或点从剪贴板导入）" autocomplete="off">
@@ -227,22 +209,6 @@
         泄露就去 GitHub 撤销（Revoke），并在各端点「删除」。</p>
     </details>
 
-    <details>
-      <summary>双库职责与令牌复制方式</summary>
-      <p class="hint">公开库 <a href="https://github.com/f1uke76/Relay-Station" target="_blank" rel="noopener">Relay-Station</a>
-        是<b>通用指令中转站</b>：托管本控制台及后续其它控制台页面，并用 Issues 承载各类指令队列（当前用于下载指令）；后续其它中转需求也复用它。
-        私有库 <a href="https://github.com/f1uke76/RemoteDL" target="_blank" rel="noopener">RemoteDL</a>
-        只存 Android 源码、APK 产物、控制台源码副本与
-        <a href="https://github.com/f1uke76/RemoteDL/blob/main/pat.md" target="_blank" rel="noopener">pat.md</a>。</p>
-      <p class="hint">私有库必须先用 f1uke76 账号登录 GitHub 才能查看；未登录打开会显示 404（正常现象）。任一网页或 App 首次使用时，点上面「查看 pat.md」，
-        登录后复制「当前令牌」那一串字符，回到本页粘进令牌框，点「验证」再点「保存」。App 里对应的是
-        「打开 pat.md 复制令牌」按钮。不做任何自动读取，令牌始终由你亲自复制填写。</p>
-      <p class="hint">还没有登记过令牌时，用「一键获取令牌」新建一枚：仓库选 <b>RemoteDL</b> + <b>Relay-Station</b>，
-        权限勾 <b>Issues: Read and write</b> 与 <b>Contents: Read and write</b>（前者用于创建/修改 Issue 和回传进度，后者用于写 pat.md）。
-        每个字段该填什么、填错会怎样，见上方「PAT 填写指引」。</p>
-      <p class="hint"><b>安全</b>：pat.md 含明文令牌且留在 git 历史里，私有库切勿转公开；令牌泄露就撤销，并在各端点「删除」。
-        公开中转库的 Issues 匿名可读，App 不配令牌也能下载，但别把带签名参数的私密链接放进去。</p>
-    </details>
   </div>
 
   <div class="card card-add">
@@ -254,7 +220,6 @@
       <button class="sec" id="btnOpenIssues">在 GitHub 查看</button>
     </div>
     <div class="msg" id="msg"></div>
-    <p class="hint">配置主令牌后直接在本页创建 Issue，不跳转、不离开当前页面。App 下次检查或点「立即获取链接」时开始下载。</p>
   </div>
 
   <div class="card card-list">
@@ -409,7 +374,6 @@
     $('tokBadge').textContent = token ? '已配置' : (typed ? '待保存' : '未配置');
     $('tokBadge').className = 'badge' + (token ? ' done' : (typed ? ' downloading' : ' canceled'));
     $('tokenRow').className = 'tokline' + (state === 'saved' ? ' hide' : '');
-    $('wizard').className = 'wiz' + (state === 'empty' ? '' : ' hide');
     if (state !== 'saved') $('exportBox').className = 'export hide';
     var h = '';
     if (state === 'empty') {
