@@ -76,16 +76,32 @@
 
 ## 四之半、控制台版式（务必保持）
 
-- 页面骨架：`.wrap > h1 / .layout > .card-add / .card-list / .card-pat`，三张卡片都在 `.layout` 内；
+- 页面骨架：`.wrap > h1 / .layout > .card-add / .card-list / .card-dev / .card-pat`，四张卡片都在 `.layout` 内；
   页面**没有副标题、没有开场说明**，第一屏直接是操作卡片。
 - 手机（< 900px）：`.layout` 为纵向 flex，视觉顺序固定为
-  **添加下载链接 → 下载请求 → 连接 GitHub**（靠 `order` 控制，不放宽）。
-- 电脑（≥ 900px）：`.layout` 变网格，`grid-template-areas: "list add" "list pat"`，
-  即**左列独占下载管理，右列上「添加下载」下「连接 GitHub」**；`.wrap` 放宽到 1080px。
+  **添加下载链接 → 下载请求 → 设备监控 → 连接 GitHub**（靠 `order` 控制，不放宽）。
+- 电脑（≥ 900px）：`.layout` 变网格，`grid-template-areas: "list add" "list pat" "list dev"`，
+  即**左列独占下载管理，右列自上而下「添加下载」「连接 GitHub」「设备监控」**；`.wrap` 放宽到 1080px。
+- 「添加下载链接」默认折叠：`.card-head`（标题 + 右侧 `展开/收起`）点一下切换 `.fold-body` 的 `hide`，
+  右侧文字与 `aria-expanded` 同步；键盘 Enter / 空格也能开合。**禁止默认展开**，也禁止删掉表单只留按钮。
 - 新增控制台卡片时必须先决定它在这两套版式里的位置，不能直接插在 `.wrap` 下破坏分列。
 - **页面只放操作元素**：按钮、输入框、状态行、必填提示。双库职责、令牌复制流程、安全须知这类说明文字
   一律写在 `AGENTS.md` / 私有库 README 里，不要堆到网页上（已按要求删除「双库职责与令牌复制方式」等段落）。
 - 空的状态行（`.msg` / `.tokstat`）必须不占位：样式里用 `:empty { display: none; }`，避免卡片底部留白。
+
+## 四之三分、App 任务管理与检查更新（务必保持）
+
+- App 的「下载任务」列表与控制台同一套数据：读 `state=all&per_page=100`，显示序号（按列表顺序重排）、
+  文件名、状态、认领设备与进度；设备心跳 issue（title `DEVICE`）不进入列表。
+- 动作语义必须与控制台一致（统一走 `TaskControl`）：
+  暂停 = open + `paused` + `RDL-PAUSE`（保留分片）；开始 = open + `queued` 且清空认领；
+  取消 = open + `queued` + 进度归零 + 清空认领（解除认领、重新开放，**不关闭 issue**）；
+  删除记录 = closed + `deleted`。禁止在 App 里做成「取消即关闭」。
+- 操作的对象若是本机当前任务，必须先写 `Sync.pauseRequested` / `Sync.cancelRequested`，
+  让下载线程立刻停，再 PATCH issue，避免只改状态不停传输。
+- 「检查更新」读私有库 `f1uke76/RemoteDL` 的 `releases/latest`，仓库私有，**必须带令牌**；
+  版本比较按数字段逐段比（忽略 `v` 前缀），禁止用字符串比较。有新版只弹窗说明并跳浏览器下载，
+  **不做应用内静默安装**（避免引入安装权限与 FileProvider 风险）。
 
 ## 五、禁止事项
 
