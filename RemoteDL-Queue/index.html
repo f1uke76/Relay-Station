@@ -424,15 +424,20 @@
     return (items || []).filter(function (it) { return !isDevice(it); });
   }
   function devList(items) {
-    var out = [];
+    // 同一台设备可能残留多条 DEVICE issue：按 id 只保留最近上报的一条
+    var map = {}, order = [];
     (items || []).forEach(function (it) {
       if (!isDevice(it)) return;
       var d = devTag(it.body);
       if (!d) return;
-      out.push({ id: String(d.id || ('#' + it.number)), model: String(d.model || '未知机型'),
-                 data: d, issue: it });
+      var id = String(d.id || ('#' + it.number));
+      var cur = map[id];
+      if (!cur || Number(d.ts) > Number(cur.data.ts)) {
+        map[id] = { id: id, model: String(d.model || '未知机型'), data: d, issue: it };
+        if (!cur) order.push(id);
+      }
     });
-    return out;
+    return order.map(function (k) { return map[k]; });
   }
   function devNameOf(id, devs) {
     if (!id) return '';
