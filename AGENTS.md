@@ -97,6 +97,8 @@
   暂停 = open + `paused` + `RDL-PAUSE`（保留分片）；开始 = open + `queued` 且清空认领；
   取消 = open + `queued` + 进度归零 + 清空认领（解除认领、重新开放，**不关闭 issue**）；
   删除记录 = closed + `deleted`。禁止在 App 里做成「取消即关闭」。
+- App **只管理自己的任务**：`dev` 为空（可自由认领）或等于本机 id 时才显示操作按钮；
+  已被其它设备认领的条目只展示状态与认领方，不给按钮，避免两台手机互相打断。
 - 操作的对象若是本机当前任务，必须先写 `Sync.pauseRequested` / `Sync.cancelRequested`，
   让下载线程立刻停，再 PATCH issue，避免只改状态不停传输。
 - 「检查更新」读私有库 `f1uke76/RemoteDL` 的 `releases/latest`，仓库私有，**必须带令牌**；
