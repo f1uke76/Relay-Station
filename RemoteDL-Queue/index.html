@@ -59,7 +59,8 @@
   .badge.dev { background: #1d2b3a; color: #9dc4ff; }
   .badge.unclaimed { background: #262b34; color: #9aa0a6; }
   .name { font-size: 13px; font-weight: 600; color: #dfe4ea; word-break: break-all; margin-top: 8px; }
-  .url { font: 11px/1.5 ui-monospace, monospace; color: #8b919a; word-break: break-all; margin: 3px 0 0; }
+  .url { font: 11px/1.5 ui-monospace, monospace; color: #8b919a; word-break: break-all; margin: 3px 0 0; cursor: pointer; }
+  .url.fold { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .bar { height: 8px; border-radius: 6px; background: #262b34; overflow: hidden; margin: 8px 0 5px; }
   .bar > i { display: block; height: 100%; background: #1f6feb; transition: width .3s; }
   .bar.done > i { background: #2ea86a; }
@@ -1086,12 +1087,15 @@
         + esc(dev ? devNameOf(dev, devs) : '未认领') + '</span>'
         + (it.state === 'closed' ? '<span class="badge closed">已关闭</span>' : '') + '</div>'
         + '<div class="name" title="' + esc(url) + '">' + esc(fileNameOf(url)) + '</div>'
-        + '<div class="url">' + esc(url) + '</div>'
+        + '<div class="url fold" title="点击展开 / 收起">' + esc(url) + '</div>'
         + '<div class="bar ' + barCls + '"><i style="width:' + pct + '%"></i></div>'
         + '<div class="meta">' + esc(meta || '暂无进度数据') + '</div>'
         + '<div class="actions" style="--cols:' + cols + '">' + acts + '</div></div>';
     });
     box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.url'), function (el) {
+      el.addEventListener('click', function () { el.classList.toggle('fold'); });
+    });
     Array.prototype.forEach.call(box.querySelectorAll('button[data-act]'), function (b) {
       b.addEventListener('click', function () {
         var n = Number(b.getAttribute('data-n'));
