@@ -50,14 +50,31 @@
   .badge.canceled, .badge.deleted { background: #463523; color: #ffcf9a; }
   .badge.paused { background: #3a3320; color: #ffd08a; }
   .badge.closed { background: #2b2b30; color: #8b919a; }
-  .url { font: 12px/1.5 ui-monospace, monospace; color: #c9d3e0; word-break: break-all; margin: 8px 0; }
+  .badge.dev { background: #1d2b3a; color: #9dc4ff; }
+  .badge.unclaimed { background: #262b34; color: #9aa0a6; }
+  .name { font-size: 13px; font-weight: 600; color: #dfe4ea; word-break: break-all; margin-top: 8px; }
+  .url { font: 11px/1.5 ui-monospace, monospace; color: #8b919a; word-break: break-all; margin: 3px 0 0; }
   .bar { height: 8px; border-radius: 6px; background: #262b34; overflow: hidden; margin: 8px 0 5px; }
   .bar > i { display: block; height: 100%; background: #1f6feb; transition: width .3s; }
   .bar.done > i { background: #2ea86a; }
   .bar.failed > i { background: #d0574c; }
   .meta { font-size: 11px; color: #8b919a; font-family: monospace; }
-  .actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-  .actions button { flex: 1 1 calc(50% - 4px); min-width: 0; }
+  /* 任务操作键：2 列，3 个时 3 列；单个按钮只占一格，不独占整行 */
+  .actions { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+             gap: 8px; margin-top: 10px; }
+  .actions button { width: 100%; min-width: 0; }
+  /* 筛选：两个下拉并排，改变即重渲染，不重新请求 */
+  .filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 10px; }
+  select { width: 100%; background: #10131a; color: #e8eaed; border: 1px solid #343a45;
+           border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+  select:focus { outline: none; border-color: #1f6feb; }
+  /* 设备监控 */
+  .dev { border: 1px solid #2a2e36; border-radius: 10px; padding: 12px; margin-top: 10px; background: #14171d; }
+  .dev-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .dev-name { font-size: 13px; font-weight: 600; color: #dfe4ea; }
+  .dev-id { font: 11px ui-monospace, monospace; color: #6f7680; }
+  .dev-actions { display: grid; grid-template-columns: minmax(0, 1fr) 84px; gap: 8px; margin-top: 10px; }
+  .dev-actions button, .dev-actions select { width: 100%; min-width: 0; }
   .empty { color: #8b919a; font-size: 13px; padding: 14px 0; text-align: center; }
   details { margin-top: 10px; }
   summary { cursor: pointer; font-size: 12px; color: #9aa0a6; }
@@ -76,8 +93,8 @@
   .export { background: #14171d; border-radius: 10px; padding: 12px; margin-top: 10px; }
   .export .link { font: 11px/1.5 ui-monospace, monospace; color: #9aa0a6; word-break: break-all; margin: 8px 0; }
   /* PAT 功能键：等宽网格，2 个两列、3 个三列、4 个两列两行，左右对齐且不会单个拉伸 */
-  .row.pat-actions { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 8px; }
-  .row.pat-actions button { width: 100%; min-width: 0; padding-left: 6px; padding-right: 6px; }
+  .row.pat-actions, .row.grid-actions { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 8px; }
+  .row.pat-actions button, .row.grid-actions button { width: 100%; min-width: 0; padding-left: 6px; padding-right: 6px; }
   .modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
            padding: 18px; background: rgba(6, 8, 12, .72); }
   .modal-card { width: 100%; max-width: 380px; background: #1a1d23; border: 1px solid #2a2e36;
@@ -87,24 +104,26 @@
   .modal-card .row { margin-top: 10px; }
   .modal.hide { display: none; }
   .hide { display: none; }
-  /* 版式：手机竖排 添加下载 → 下载管理 → 连接 GitHub */
+  /* 版式：手机竖排 添加下载 → 下载请求 → 设备监控 → 连接 GitHub */
   .layout { display: flex; flex-direction: column; }
   .card-add { order: 1; }
   .card-list { order: 2; }
-  .card-pat { order: 3; }
-  /* 电脑：左列下载管理，右列上「添加下载」下「连接 GitHub」 */
+  .card-dev { order: 3; }
+  .card-pat { order: 4; }
+  /* 电脑：左列独占「下载请求」，右列自上而下 添加下载 → 连接 GitHub → 设备监控 */
   @media (min-width: 900px) {
     .wrap { max-width: 1080px; }
     .layout {
       display: grid;
       grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-      grid-template-areas: "list add" "list pat";
+      grid-template-areas: "list add" "list pat" "list dev";
       gap: 14px; align-items: start;
     }
-    .card-add, .card-list, .card-pat { margin: 0; }
+    .card-add, .card-list, .card-pat, .card-dev { margin: 0; }
     .card-list { grid-area: list; }
     .card-add { grid-area: add; }
     .card-pat { grid-area: pat; }
+    .card-dev { grid-area: dev; order: 3; }
   }
 </style>
 </head>
@@ -229,8 +248,31 @@
       <button class="sec sm" id="btnRefresh">立即刷新</button>
       <button class="sec sm" id="btnAuto">自动刷新：开</button>
     </h2>
+    <div class="filters">
+      <select id="fStatus" aria-label="按状态筛选">
+        <option value="all">全部状态</option>
+        <option value="queued">排队中</option>
+        <option value="downloading">下载中</option>
+        <option value="paused">已暂停</option>
+        <option value="done">已完成</option>
+        <option value="failed">失败</option>
+        <option value="canceled">已取消</option>
+        <option value="deleted">已删除</option>
+        <option value="unclaimed">未认领</option>
+      </select>
+      <select id="fDev" aria-label="按设备筛选">
+        <option value="all">全部设备</option>
+        <option value="">未认领</option>
+      </select>
+    </div>
     <div id="list"><div class="empty">读取中…</div></div>
     <div class="status-line" id="statusLine">—</div>
+  </div>
+
+  <div class="card card-dev hide" id="cardDev">
+    <h2>设备监控</h2>
+    <div id="devList"></div>
+    <div class="msg" id="devMsg"></div>
   </div>
   </div><!-- /.layout -->
 </div>
@@ -240,11 +282,9 @@
     <h3>删除令牌</h3>
     <p>只删本机：清掉这台设备的令牌，私有库 <code>pat.md</code> 的登记和其它设备都保留。</p>
     <p>删除所有：清掉本机令牌，并把 <code>pat.md</code> 登记清空，其它设备下次打开时同步删除。</p>
-    <div class="row">
+    <div class="row grid-actions" style="--cols:3">
       <button class="sec" id="aDelLocal">仅删本机</button>
       <button class="warn" id="aDelAll">删除所有</button>
-    </div>
-    <div class="row">
       <button class="sec" id="aDelCancel">取消</button>
     </div>
   </div>
@@ -279,6 +319,12 @@
   var autoOn = localStorage.getItem('rdl_auto') !== '0';
   var timer = null;
   var REFRESH_MS = 5000;
+  var OFFLINE_MS = 5 * 60 * 1000;   // 设备超过 5 分钟没上报即判离线
+  var cache = [];                    // 最近一次拉取的 issue，筛选时只重渲染不重新请求
+  var filterStatus = 'all';
+  var filterDev = 'all';
+  var devHtml = null;                // 设备区上次渲染结果，内容没变就不重建 DOM
+  var MODEL = webModel();            // 本网页登记的机型
 
   var PAT_LINK = 'https://github.com/settings/personal-access-tokens/new'
     + '?name=' + encodeURIComponent('RemoteDL')
@@ -298,6 +344,10 @@
   }
   function setTokStat(t, bad) {
     var e = $('tokStat'); e.textContent = t; e.className = 'tokstat' + (bad ? ' bad' : '');
+  }
+  function devMsg(t, bad) {
+    var m = $('devMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' err' : '');
+    if (t) setTimeout(function () { if (m.textContent === t) m.textContent = ''; }, 7000);
   }
   function headers(t) {
     var h = { 'Accept': 'application/vnd.github+json',
@@ -331,9 +381,84 @@
     if (!m) return null;
     try { return JSON.parse(m[1]); } catch (e) { return null; }
   }
+  /** 设备 issue：title 以 DEVICE 开头，body 带 RDL-DEV 标记；它不是下载任务。 */
+  function isDevice(it) { return /^DEVICE\b/.test(String((it && it.title) || '').trim()); }
+  function devTag(body) {
+    var m = /<!--RDL-DEV:(\{.*?\})-->/.exec(String(body || ''));
+    if (!m) return null;
+    try { return JSON.parse(m[1]); } catch (e) { return null; }
+  }
+  /** 只替换 RDL-DEV 标记，body 里的其它内容与其它字段原样保留。 */
+  function setDevTag(body, obj) {
+    var s = String(body || '');
+    var tag = '<!--RDL-DEV:' + JSON.stringify(obj) + '-->';
+    return /<!--RDL-DEV:\{.*?\}-->/.test(s)
+      ? s.replace(/<!--RDL-DEV:\{.*?\}-->/, tag)
+      : (s.replace(/\s+$/, '') ? s.replace(/\s+$/, '') + '\n' : '') + tag + '\n';
+  }
+  /** 任务 issue 的 body：首行命令 + RDL 标记 + 控制标记，标记按需重建。 */
+  function taskBody(first, st, flags) {
+    var out = first + '\n<!--RDL:' + JSON.stringify(st) + '-->\n';
+    (flags || []).forEach(function (f) { out += f + '\n'; });
+    return out;
+  }
+  function extend(a, b) {
+    var o = {}, k;
+    for (k in a) o[k] = a[k];
+    for (k in b) o[k] = b[k];
+    return o;
+  }
+  function taskList(items) {
+    return (items || []).filter(function (it) { return !isDevice(it); });
+  }
+  function devList(items) {
+    var out = [];
+    (items || []).forEach(function (it) {
+      if (!isDevice(it)) return;
+      var d = devTag(it.body);
+      if (!d) return;
+      out.push({ id: String(d.id || ('#' + it.number)), model: String(d.model || '未知机型'),
+                 data: d, issue: it });
+    });
+    return out;
+  }
+  function devNameOf(id, devs) {
+    if (!id) return '';
+    for (var i = 0; i < devs.length; i++) {
+      if (devs[i].id === id) return devs[i].model === id ? id : devs[i].model + ' · ' + id;
+    }
+    return id;
+  }
+  function isOnline(d) {
+    var ts = Number((d && d.ts) || 0);
+    return ts > 0 && (Date.now() - ts) <= OFFLINE_MS;
+  }
+  /** 标题用文件名：URL pathname 末段 decodeURIComponent，取不到退回整条链接。 */
+  function fileNameOf(u) {
+    if (!/^https?:\/\//i.test(u)) return u;
+    try {
+      var seg = new URL(u).pathname.split('/').filter(Boolean).pop();
+      if (seg) return decodeURIComponent(seg);
+    } catch (e) {}
+    return u;
+  }
   function tokenLike(s) {
     var m = /(?:github_pat_|ghp_)[A-Za-z0-9_]{20,}/.exec(String(s || ''));
     return m ? m[0] : '';
+  }
+  /** 从 UA 里抠机型；抠不到写「网页端」（与 App 端登记的 model 字段同义）。 */
+  function webModel() {
+    var ua = navigator.userAgent || '';
+    var m = /Android[^;]*;\s*([^;)]+?)(?:\s+Build[/;]|\))/i.exec(ua);
+    if (m) {
+      var s = m[1].replace(/\s+Build$/i, '').trim();
+      return s || '网页端';
+    }
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Macintosh/i.test(ua)) return 'Mac';
+    if (/Windows/i.test(ua)) return 'Windows';
+    return '网页端';
   }
   function b64encode(str) {
     var bytes = new TextEncoder().encode(str), bin = '';
@@ -357,10 +482,12 @@
       + '> 其它设备：打开本文件，复制下面「当前令牌」的整串字符，\n'
       + '> 粘贴到控制台网页或 App 的令牌框里，点「验证」再点「保存」。\n\n'
       + (t ? '- 当前令牌：`' + t + '`\n- 登记时间：' + new Date(ts).toLocaleString('zh-CN')
-              + '\n- 来源端：' + by + '\n- 权限：Relay-Station Issues 写 + RemoteDL Contents 写\n'
+              + '\n- 来源端：' + by + '\n- 机型：' + MODEL
+              + '\n- 权限：Relay-Station Issues 写 + RemoteDL Contents 写\n'
            : '- 当前状态：已清空（无有效登记）\n')
       + '\n<!--RDL-PAT:{"token":' + JSON.stringify(t || '')
-      + ',"ts":' + ts + ',"by":' + JSON.stringify(by || '') + '}-->\n';
+      + ',"ts":' + ts + ',"by":' + JSON.stringify(by || '')
+      + ',"model":' + JSON.stringify(MODEL) + '}-->\n';
   }
   function write(str, ok) {
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
@@ -504,7 +631,7 @@
       var reg = await readRegistry(t);
       s += reg.error ? ' · pat.md 不可读' : ' · pat.md 可读';
       setTokStat(s, false);
-      tokMsg('验证通过，点「保存」写入私有库 pat.md');
+      tokMsg('已拿到账号与权限信息，确认无误再点「保存」');
     } catch (e) { setTokStat('校验失败：' + e.message, true); }
   }
   /** 判断一枚令牌现在是否还能用：true 有效 / false 已失效 / null 判断不了（网络问题）。 */
@@ -575,7 +702,7 @@
     $('token').value = '';
     renderPat();
     setTokStat(note, false);
-    tokMsg(note);
+    tokMsg('');            // 结论只在 tokStat 显示，避免两行说同一句话
   }
   /** 删除前的选择弹窗：只删本机 / 连 pat.md 登记一起删。 */
   function openDelDialog() {
@@ -620,7 +747,7 @@
     $('token').value = '';
     renderPat();
     setTokStat(note, true);
-    tokMsg(note);
+    tokMsg('已同步删除本机令牌');
     refresh();
   }
   /** 已保存状态的验证：令牌是否仍有效 + pat.md 是否已清空 / 与本机一致。 */
@@ -632,7 +759,7 @@
       var r = await fetch('https://api.github.com/user', { headers: headers(), cache: 'no-store' });
       if (!r.ok) {
         setTokStat('令牌无效或已过期（HTTP ' + r.status + '）：建议点「删除」后重新获取', true);
-        tokMsg('令牌已失效，请点「删除」并重新获取', true);
+        tokMsg('令牌已失效，需要重新获取', true);
         return;
       }
       var u = await r.json();
@@ -649,8 +776,8 @@
     else if (out.reg.token === token) parts.push('pat.md 已登记且与本机一致');
     else parts.push('pat.md 登记的是另一枚令牌（启动会自动同步）');
     var s = parts.join(' · ');
-    setTokStat(s, bad);
-    tokMsg('验证完成：' + s);
+    setTokStat(s, bad);                                  // 结果只留这一行
+    tokMsg(bad ? '验证发现问题，按上面状态行处理' : '验证完成');   // 瞬时提示，不重复结论
   }
   async function syncFromRegistry() {
     try {
@@ -735,29 +862,50 @@
     if (!r.ok) throw new Error('HTTP ' + r.status);
   }
 
-  /** 暂停 / 开始 / 取消 / 删除记录 / 永久删除。 */
+  /**
+   * 设备控制：只改 cmd / max，其余字段（id、model、battery、wifi、charging、ts、ver）
+   * 原样保留；ts 是设备心跳时间，控制台不覆写。
+   */
+  async function patchDev(dev, patch) {
+    if (!token) { devMsg('需要先配置主令牌', true); return; }
+    var it = cache.filter(function (x) { return x.number === dev.issue.number; })[0] || dev.issue;
+    var old = devTag(it.body) || {};
+    var next = extend(old, patch);
+    if ('ts' in old) next.ts = old.ts;
+    try {
+      await patchIssue(it.number, { body: setDevTag(it.body, next) });
+      devMsg(patch.cmd === 'stop'
+        ? '已下发 stop：设备会停止当前任务并退出'
+        : '并发上限已改为 ' + next.max + '，设备下次轮询生效');
+      refresh();
+    } catch (e) { devMsg('操作失败：' + e.message, true); }
+  }
+
+  /** 暂停 / 开始 / 取消认领 / 删除记录 / 永久删除。 */
   async function runAction(item, act) {
     if (act === 'purge') { await purgeIssue(item); return; }
     if (!token) { msg('需要先配置主令牌', true); return; }
-    var st = rdl(item.body) || { p: 0 };
+    var st = rdl(item.body) || {};
     var first = rawFirstLine(item.body);
-    var p = Number(st.p) || 0;
+    var cur = { s: st.s || 'queued', p: Number(st.p) || 0, done: Number(st.done) || 0,
+                total: Number(st.total) || 0, ts: Number(st.ts) || 0, dev: String(st.dev || '') };
     try {
       if (act === 'pause') {
-        await patchIssue(item.number, { body: first + '\n<!--RDL:{"s":"paused","p":' + p
-          + '}-->\n<!--RDL-PAUSE-->\n' });
+        await patchIssue(item.number, { state: 'open',
+          body: taskBody(first, extend(cur, { s: 'paused' }), ['<!--RDL-PAUSE-->']) });
         msg('已暂停：App 下次检查会跳过该任务，已下载的分片保留');
       } else if (act === 'start') {
         await patchIssue(item.number, { state: 'open',
-          body: first + '\n<!--RDL:{"s":"queued","p":' + p + '}-->\n' });
-        msg('已重新排队，App 下次检查会接着下（支持断点续传）');
+          body: taskBody(first, extend(cur, { s: 'queued', dev: '' })) });
+        msg('已开始：转未认领排队，保留已下载进度（支持断点续传）');
       } else if (act === 'cancel') {
-        await patchIssue(item.number, { state: 'closed',
-          body: first + '\n<!--RDL:{"s":"canceled","p":' + p + '}-->\n<!--RDL-CANCEL-->\n' });
-        msg('已取消任务（App 会在 5 秒内中断）');
+        // 取消不关 issue：丢掉认领、进度归零、放开自由认领
+        await patchIssue(item.number, { state: 'open',
+          body: taskBody(first, extend(cur, { s: 'queued', p: 0, dev: '' })) });
+        msg('已取消认领：任务转未认领排队，任何设备可自由认领');
       } else if (act === 'delete') {
         await patchIssue(item.number, { state: 'closed',
-          body: first + '\n<!--RDL:{"s":"deleted","p":' + p + '}-->\n' });
+          body: taskBody(first, extend(cur, { s: 'deleted' })) });
         msg('已删除记录，可再点「永久删除」彻底移除');
       }
       refresh();
@@ -790,37 +938,125 @@
                 failed: '失败', canceled: '已取消', deleted: '已删除' };
     return { key: s.s || 'waiting', label: map[s.s] || s.s, data: s };
   }
-  function render(items) {
-    var box = $('list');
-    if (!Array.isArray(items) || !items.length) {
-      box.innerHTML = '<div class="empty">队列为空，上面加一个链接试试</div>';
-      return;
+  /** 筛选：状态 + 设备（dev 为空 = 未认领）；只重渲染缓存，不发请求。 */
+  function matchFilter(it, st) {
+    var dev = String((st.data || {}).dev || '');
+    if (filterDev === '') { if (dev) return false; }
+    else if (filterDev !== 'all' && dev !== filterDev) return false;
+    if (filterStatus === 'all') return true;
+    if (filterStatus === 'unclaimed') return !dev && st.key !== 'deleted';
+    return st.key === filterStatus;
+  }
+
+  /** 设备下拉随设备列表重建（选项没变就不动 DOM，避免打断交互），尽量保留选中项。 */
+  function fillDevSelect(devs) {
+    var sel = $('fDev'), want = filterDev, i;
+    var sig = devs.map(function (d) { return d.id + '\u0001' + d.model; }).join('\u0002');
+    if (sel.getAttribute('data-sig') !== sig) {
+      var h = '<option value="all">全部设备</option><option value="">未认领</option>';
+      devs.forEach(function (d) { h += '<option value="' + esc(d.id) + '">' + esc(d.model) + '</option>'; });
+      sel.innerHTML = h;
+      sel.setAttribute('data-sig', sig);
     }
+    var keep = false;
+    for (i = 0; i < sel.options.length; i++) { if (sel.options[i].value === want) keep = true; }
+    filterDev = keep ? want : 'all';
+    sel.value = filterDev;
+  }
+
+  /** 设备监控：5 分钟判在线；每台可下发 cmd=stop 与改 max（1~5）。 */
+  function renderDev(devs) {
+    var box = $('devList');
+    $('cardDev').className = 'card card-dev' + (devs.length ? '' : ' hide');
+    if (!devs.length) { box.innerHTML = ''; devHtml = ''; return; }
     var html = '';
-    items.slice().reverse().forEach(function (it) {
+    devs.forEach(function (d) {
+      var x = d.data || {}, on = isOnline(x);
+      var bat = typeof x.battery === 'number' ? x.battery + '%' : '—';
+      var max = Math.max(1, Math.min(5, Number(x.max) || 2));
+      var opts = '';
+      for (var i = 1; i <= 5; i++) {
+        opts += '<option value="' + i + '"' + (i === max ? ' selected' : '') + '>' + i + '</option>';
+      }
+      html += '<div class="dev">'
+        + '<div class="dev-head"><span class="dev-name">' + esc(d.model) + '</span>'
+        + '<span class="badge ' + (on ? 'done' : 'closed') + '">' + (on ? '在线' : '离线') + '</span>'
+        + '<span class="dev-id">' + esc(d.id) + '</span></div>'
+        + '<div class="meta">电量 ' + esc(bat) + (x.charging ? ' · 充电中' : '')
+        + ' · WiFi ' + esc(x.wifi == null || x.wifi === '' ? '—' : x.wifi)
+        + ' · 并发上限 ' + max
+        + ' · 上报 ' + (Number(x.ts) ? esc(new Date(Number(x.ts)).toLocaleTimeString('zh-CN')) : '无')
+        + '</div>'
+        + '<div class="dev-actions">'
+        + '<button class="sec sm" data-devstop="1" data-n="' + d.issue.number + '"'
+        + (x.cmd === 'stop' ? ' disabled' : '') + '>'
+        + (x.cmd === 'stop' ? '已下发停止' : '停止并退出') + '</button>'
+        + '<select data-devmax="1" data-n="' + d.issue.number + '" aria-label="并发上限">' + opts + '</select>'
+        + '</div></div>';
+    });
+    if (html === devHtml) return;   // 内容没变：保留正在操作的下拉
+    devHtml = html;
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('button[data-devstop]'), function (b) {
+      b.addEventListener('click', function () {
+        var n = Number(b.getAttribute('data-n'));
+        var d = devs.filter(function (v) { return v.issue.number === n; })[0];
+        if (d) patchDev(d, { cmd: 'stop' });
+      });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('select[data-devmax]'), function (s) {
+      s.addEventListener('change', function () {
+        var n = Number(s.getAttribute('data-n'));
+        var d = devs.filter(function (v) { return v.issue.number === n; })[0];
+        if (d) patchDev(d, { max: Math.max(1, Math.min(5, Number(s.value) || 2)) });
+      });
+    });
+  }
+
+  function render(items) {
+    cache = Array.isArray(items) ? items : [];
+    var devs = devList(cache);
+    fillDevSelect(devs);
+    renderDev(devs);
+
+    var box = $('list');
+    var all = taskList(cache).slice().reverse();   // 新的在前
+    if (!all.length) { box.innerHTML = '<div class="empty">队列为空，上面加一个链接试试</div>'; return; }
+    var shown = all.filter(function (it) { return matchFilter(it, stateOf(it)); });
+    if (!shown.length) { box.innerHTML = '<div class="empty">没有符合筛选条件的任务</div>'; return; }
+
+    var html = '';
+    shown.forEach(function (it, i) {
       var st = stateOf(it), s = st.data || {};
       var pct = Math.max(0, Math.min(100, Number(s.p) || 0));
       var barCls = st.key === 'done' ? 'done' : (st.key === 'failed' ? 'failed' : '');
+      var dev = String(s.dev || '');
+      var url = linkOf(it.body);
       var meta = '';
       if (s.total > 0) meta += fmtBytes(s.done) + ' / ' + fmtBytes(s.total) + ' · ' + pct + '%';
       else if (s.done > 0) meta += fmtBytes(s.done);
       if (s.ts) meta += ' · 更新 ' + new Date(Number(s.ts)).toLocaleTimeString('zh-CN');
       if (it.created_at) meta += ' · 创建 ' + new Date(it.created_at).toLocaleString('zh-CN');
+      var acts = actionsFor(it, st);
+      var cols = (acts.match(/<button/g) || []).length === 3 ? 3 : 2;
       html += '<div class="item">'
-        + '<div class="item-head"><span class="num">#' + it.number + '</span>'
+        + '<div class="item-head"><span class="num">#' + (i + 1) + '</span>'
         + '<span class="badge ' + esc(st.key) + '">' + esc(st.label)
         + (st.key === 'downloading' ? ' ' + pct + '%' : '') + '</span>'
+        + '<span class="badge ' + (dev ? 'dev' : 'unclaimed') + '">'
+        + esc(dev ? devNameOf(dev, devs) : '未认领') + '</span>'
         + (it.state === 'closed' ? '<span class="badge closed">已关闭</span>' : '') + '</div>'
-        + '<div class="url">' + esc(linkOf(it.body)) + '</div>'
+        + '<div class="name" title="' + esc(url) + '">' + esc(fileNameOf(url)) + '</div>'
+        + '<div class="url">' + esc(url) + '</div>'
         + '<div class="bar ' + barCls + '"><i style="width:' + pct + '%"></i></div>'
         + '<div class="meta">' + esc(meta || '暂无进度数据') + '</div>'
-        + '<div class="actions">' + actionsFor(it, st) + '</div></div>';
+        + '<div class="actions" style="--cols:' + cols + '">' + acts + '</div></div>';
     });
     box.innerHTML = html;
     Array.prototype.forEach.call(box.querySelectorAll('button[data-act]'), function (b) {
       b.addEventListener('click', function () {
         var n = Number(b.getAttribute('data-n'));
-        var it = items.find(function (x) { return x.number === n; });
+        var it = cache.filter(function (x) { return x.number === n; })[0];
         if (it) runAction(it, b.getAttribute('data-act'));
       });
     });
@@ -838,7 +1074,8 @@
       }
       var items = await r.json();
       render(items);
-      $('statusLine').textContent = '中转库 ' + QUEUE + ' · 共 ' + items.length + ' 条 · 上次刷新 '
+      $('statusLine').textContent = '中转库 ' + QUEUE + ' · 任务 ' + taskList(items).length
+        + ' 条 · 设备 ' + devList(items).length + ' 台 · 上次刷新 '
         + new Date().toLocaleTimeString('zh-CN') + ' · 自动刷新'
         + (autoOn ? '每 5 秒' : '已关闭');
     } catch (e) {
@@ -847,6 +1084,8 @@
     }
   }
   $('btnRefresh').addEventListener('click', refresh);
+  $('fStatus').addEventListener('change', function () { filterStatus = this.value; render(cache); });
+  $('fDev').addEventListener('change', function () { filterDev = this.value; render(cache); });
   $('btnAuto').addEventListener('click', function () {
     autoOn = !autoOn;
     localStorage.setItem('rdl_auto', autoOn ? '1' : '0');
