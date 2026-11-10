@@ -18,6 +18,8 @@
   .card { background: #1a1d23; border: 1px solid #2a2e36; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
   .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; color: #cfd4da; display: flex; align-items: center; gap: 8px; }
   .add-body { margin-top: 12px; }
+  /* 添加区只剩「加入队列」一个按钮：占满整行 */
+  .card-add .row > button { flex: 1 1 100%; }
   label { display: block; font-size: 12px; color: #9aa0a6; margin: 0 0 5px; }
   input[type=text], input[type=password] {
     width: 100%; background: #10131a; color: #e8eaed;
@@ -241,7 +243,6 @@
       <input type="text" id="link" placeholder="https://example.com/file.zip" inputmode="url">
       <div class="row">
         <button id="btnAdd">加入队列</button>
-        <button class="sec" id="btnOpenIssues">在 GitHub 查看</button>
       </div>
       <div class="msg" id="msg"></div>
     </div>
@@ -864,10 +865,6 @@
       refresh();
     } catch (e) { msg('提交失败：' + e.message, true); }
   });
-  $('btnOpenIssues').addEventListener('click', function () {
-    window.open('https://github.com/' + OWNER + '/' + QUEUE + '/issues', '_blank', 'noopener');
-  });
-
   /** 每个状态该出现哪些按钮（成对切换，不出现孤立按钮）。 */
   function actionsFor(it, st) {
     var n = it.number;
