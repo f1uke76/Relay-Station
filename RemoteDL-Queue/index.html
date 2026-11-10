@@ -17,12 +17,7 @@
   .sub { color: #9aa0a6; font-size: 12px; margin-bottom: 16px; }
   .card { background: #1a1d23; border: 1px solid #2a2e36; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
   .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; color: #cfd4da; display: flex; align-items: center; gap: 8px; }
-  /* 可折叠卡片标题：整行可点，右侧文字随开合切换 */
-  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px;
-               cursor: pointer; user-select: none; }
-  .card-head h2 { margin: 0; }
-  .card-head .fold { font-size: 12px; font-weight: 400; color: #8ab4f8; }
-  .fold-body { margin-top: 12px; }
+  .add-body { margin-top: 12px; }
   label { display: block; font-size: 12px; color: #9aa0a6; margin: 0 0 5px; }
   input[type=text], input[type=password] {
     width: 100%; background: #10131a; color: #e8eaed;
@@ -240,12 +235,8 @@
   </div>
 
   <div class="card card-add">
-    <div class="card-head" id="addHead" role="button" tabindex="0"
-         aria-expanded="false" aria-controls="addBody">
-      <h2>添加下载链接</h2>
-      <span class="fold" id="addTag">展开</span>
-    </div>
-    <div class="fold-body hide" id="addBody">
+    <h2>添加下载链接</h2>
+    <div class="add-body" id="addBody">
       <label for="link">http / https 直链</label>
       <input type="text" id="link" placeholder="https://example.com/file.zip" inputmode="url">
       <div class="row">
@@ -839,28 +830,6 @@
       setTokStat('未配置：点「查看 pat.md」复制令牌粘贴，或「一键获取令牌」新建', false);
     }
   }
-
-  /** 添加下载区默认折叠；点标题展开，再点收起，右侧文字同步。 */
-  function setAddOpen(open) {
-    var body = $('addBody');
-    if (!body) return;
-    body.className = 'fold-body' + (open ? '' : ' hide');
-    $('addHead').setAttribute('aria-expanded', open ? 'true' : 'false');
-    $('addTag').textContent = open ? '收起' : '展开';
-    if (open) {
-      var i = $('link');
-      if (i && i.focus) { try { i.focus(); } catch (e) {} }
-    }
-  }
-  $('addHead').addEventListener('click', function () {
-    setAddOpen($('addBody').classList.contains('hide'));
-  });
-  $('addHead').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
-      e.preventDefault();
-      setAddOpen($('addBody').classList.contains('hide'));
-    }
-  });
 
   $('btnAdd').addEventListener('click', async function () {
     var url = $('link').value.trim();
