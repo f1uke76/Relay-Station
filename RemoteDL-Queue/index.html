@@ -80,7 +80,7 @@
   .dev-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .dev-name { font-size: 13px; font-weight: 600; color: #dfe4ea; }
   .dev-id { font: 11px ui-monospace, monospace; color: #6f7680; }
-  .dev-actions { display: grid; grid-template-columns: minmax(0, 1fr) 84px; gap: 8px; margin-top: 10px; }
+  .dev-actions { display: grid; grid-template-columns: minmax(0, 1fr) 84px 56px; gap: 8px; margin-top: 10px; }
   .dev-actions button, .dev-actions select { width: 100%; min-width: 0; }
   .empty { color: #8b919a; font-size: 13px; padding: 14px 0; text-align: center; }
   details { margin-top: 10px; }
@@ -421,8 +421,14 @@
     for (k in b) o[k] = b[k];
     return o;
   }
+  /** 清空后的 issue 是槽位，不再作为任务展示。 */
+  function isEmptySlot(it) {
+    if (!it || it.state !== 'open') return false;
+    var b = String(it.body || '').trim();
+    return b === '' || String(it.title || '').trim() === '空闲槽位';
+  }
   function taskList(items) {
-    return (items || []).filter(function (it) { return !isDevice(it); });
+    return (items || []).filter(function (it) { return !isDevice(it) && !isEmptySlot(it); });
   }
   function devList(items) {
     // 同一台设备可能残留多条 DEVICE issue：按 id 只保留最近上报的一条
@@ -864,16 +870,28 @@
     var body = line + '\n<!--RDL:{"s":"queued","p":0}-->\n';
     var title = 'DL ' + new Date().toISOString().slice(0, 16).replace('T', ' ');
     try {
-      var r = await fetch(API, { method: 'POST', headers: headers(),
-        body: JSON.stringify({ title: title, body: body }) });
-      if (!r.ok) {
-        var why = r.status === 401 ? '令牌无效或已过期'
-                : r.status === 403 ? '令牌缺少中转库 Issues 写权限：到 GitHub 编辑该令牌，仓库勾 Relay-Station + RemoteDL，权限勾 Issues 与 Contents 的 Read and write（逐项见「PAT 填写指引」）'
-                : '';
-        throw new Error('HTTP ' + r.status + (why ? '（' + why + '）' : ''));
+      var free = cache.filter(isEmptySlot)[0];
+      if (!free) {
+        await refresh();
+        free = cache.filter(isEmptySlot)[0];
+      }
+      if (free) {
+        // 复用已清空的槽位，不再新建 issue
+        var pr = await fetch(API + '/' + free.number, { method: 'PATCH', headers: headers(),
+          body: JSON.stringify({ title: title, body: body, state: 'open' }) });
+        if (!pr.ok) throw new Error('HTTP ' + pr.status);
+      } else {
+        var r = await fetch(API, { method: 'POST', headers: headers(),
+          body: JSON.stringify({ title: title, body: body }) });
+        if (!r.ok) {
+          var why = r.status === 401 ? '令牌无效或已过期'
+                  : r.status === 403 ? '令牌缺少中转库 Issues 写权限：到 GitHub 编辑该令牌，仓库勾 Relay-Station + RemoteDL，权限勾 Issues 与 Contents 的 Read and write（逐项见「PAT 填写指引」）'
+                  : '';
+          throw new Error('HTTP ' + r.status + (why ? '（' + why + '）' : ''));
+        }
       }
       $('link').value = '';
-      msg('已加入队列，无需跳转');
+      msg(free ? ('已复用槽位 #' + free.number) : '已加入队列，无需跳转');
       refresh();
     } catch (e) { msg('提交失败：' + e.message, true); }
   });
@@ -887,11 +905,11 @@
     var b = function (act, cls, text) {
       return '<button class="' + cls + '" data-act="' + act + '" data-n="' + n + '">' + text + '</button>';
     };
-    if (st.key === 'deleted') return b('purge', 'warn', '永久删除');
-    if (st.key === 'canceled') return b('start', 'sec', '重启任务') + b('delete', 'sec', '删除记录');
+    if (st.key === 'deleted') return b('purge', 'warn', '清空槽位');
+    if (st.key === 'canceled') return b('start', 'sec', '重启任务') + b('delete', 'warn', '清空槽位');
     if (st.key === 'paused') return b('start', 'sec', '开始任务') + b('cancel', 'warn', '取消任务');
     if (st.key === 'done' || st.key === 'failed' || st.key === 'closed') {
-      return b('start', 'sec', '重启任务') + b('delete', 'sec', '删除记录');
+      return b('start', 'sec', '重启任务') + b('delete', 'warn', '清空槽位');
     }
     return b('pause', 'sec', '暂停任务') + b('cancel', 'warn', '取消任务');
   }
@@ -944,30 +962,24 @@
           body: taskBody(first, extend(cur, { s: 'queued', p: 0, dev: '' })) });
         msg('已取消认领：任务转未认领排队，任何设备可自由认领');
       } else if (act === 'delete') {
-        await patchIssue(item.number, { state: 'closed',
-          body: taskBody(first, extend(cur, { s: 'deleted' })) });
-        msg('已删除记录，可再点「永久删除」彻底移除');
+        // 清空内容、保持 open，槽位留给后续任务复用
+        await patchIssue(item.number, { title: '空闲槽位', body: '', state: 'open' });
+        msg('已清空 #' + item.number + '，该槽位可被新任务复用');
       }
       refresh();
     } catch (e) { msg('操作失败：' + e.message, true); }
   }
 
-  /** 永久删除：把 Issue 本身删掉（GraphQL deleteIssue），不可恢复。 */
+  /** 清空槽位：保留 issue，只清空内容并保持 open，供后续任务或设备复用。 */
   async function purgeIssue(it) {
-    if (!it.node_id) { msg('缺少 Issue 标识，无法永久删除', true); return; }
-    if (!window.confirm('永久删除 Issue #' + it.number + '？此操作不可恢复。')) return;
+    if (!token) { msg('需要先配置主令牌', true); return; }
+    if (!window.confirm('清空槽位 #' + it.number + '？\n\n内容会被清空，issue 保留并可被新任务复用。')) return;
     try {
-      var r = await fetch('https://api.github.com/graphql', { method: 'POST', headers: headers(),
-        body: JSON.stringify({
-          query: 'mutation($id:ID!){deleteIssue(input:{issueId:$id}){clientMutationId}}',
-          variables: { id: it.node_id } }) });
-      var j = await r.json();
-      if (j.errors && j.errors.length) throw new Error(j.errors[0].message);
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      msg('已永久删除 #' + it.number);
+      await patchIssue(it.number, { title: '空闲槽位', body: '', state: 'open' });
+      msg('已清空槽位 #' + it.number);
       refresh();
     } catch (e) {
-      msg('永久删除失败：' + e.message + '（通常是令牌或账号缺少仓库管理员权限）', true);
+      msg('清空失败：' + e.message, true);
     }
   }
 
@@ -1032,6 +1044,7 @@
         + (x.cmd === 'stop' ? ' disabled' : '') + '>'
         + (x.cmd === 'stop' ? '已下发停止' : '停止并退出') + '</button>'
         + '<select data-devmax="1" data-n="' + d.issue.number + '" aria-label="并发上限">' + opts + '</select>'
+        + '<button class="warn sm" data-devdel="1" data-n="' + d.issue.number + '">删除</button>'
         + '</div></div>';
     });
     if (html === devHtml) return;   // 内容没变：保留正在操作的下拉
@@ -1042,6 +1055,18 @@
         var n = Number(b.getAttribute('data-n'));
         var d = devs.filter(function (v) { return v.issue.number === n; })[0];
         if (d) patchDev(d, { cmd: 'stop' });
+      });
+    });
+    Array.prototype.forEach.call(box.querySelectorAll('button[data-devdel]'), function (b) {
+      b.addEventListener('click', function () {
+        var n = Number(b.getAttribute('data-n'));
+        var d = devs.filter(function (v) { return v.issue.number === n; })[0];
+        if (!d) return;
+        if (!window.confirm('删除设备「' + (d.model || d.id) + '」？\n\n清空它占用的槽位，issue 保留并可被复用。')) return;
+        patchIssue(n, { title: '空闲槽位', body: '', state: 'open' }).then(function () {
+          devMsg('已清空设备槽位，可被新任务或其它设备复用');
+          refresh();
+        }).catch(function (e) { devMsg('清空失败：' + e.message, true); });
       });
     });
     Array.prototype.forEach.call(box.querySelectorAll('select[data-devmax]'), function (s) {
