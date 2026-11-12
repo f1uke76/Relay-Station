@@ -50,13 +50,11 @@
   .badge.downloading { background: #123a6b; color: #9dc4ff; }
   .badge.done { background: #17412c; color: #96e6b3; }
   .badge.failed { background: #4a2222; color: #ffab9f; }
-  .badge.canceled, .badge.deleted { background: #463523; color: #ffcf9a; }
   .badge.paused { background: #3a3320; color: #ffd08a; }
   .badge.closed { background: #2b2b30; color: #8b919a; }
   .badge.dev { background: #1d2b3a; color: #9dc4ff; }
   .badge.unclaimed { background: #262b34; color: #9aa0a6; }
   .badge.queued, .badge.pausedFree { background: #17321f; color: #9fe0a8; }
-  .badge.queuedDev { background: #123a6b; color: #9dc4ff; }
   .badge.st-start { background: #3a2b12; color: #ffcf9a; }
   .badge.st-pause { background: #3a3320; color: #ffd08a; }
   .badge.st-stop { background: #2b2b30; color: #8b919a; }
@@ -426,7 +424,9 @@
     return b === '' || String(it.title || '').trim() === '空闲槽位';
   }
   function taskList(items) {
-    return (items || []).filter(function (it) { return !isDevice(it) && !isEmptySlot(it); });
+    return (items || []).filter(function (it) {
+      return !isDevice(it) && !isEmptySlot(it) && it.state !== 'closed';
+    });
   }
   function devList(items) {
     // 同一台设备可能残留多条 DEVICE issue：按 id 只保留最近上报的一条
@@ -523,7 +523,7 @@
     var typed = $('token').value.trim();
     var state = token ? 'saved' : (typed ? 'filled' : 'empty');
     $('tokBadge').textContent = token ? '已配置' : (typed ? '待保存' : '未配置');
-    $('tokBadge').className = 'badge' + (token ? ' done' : (typed ? ' downloading' : ' canceled'));
+    $('tokBadge').className = 'badge' + (token ? ' done' : (typed ? ' downloading' : ' closed'));
     $('tokenRow').className = 'tokline' + (state === 'saved' ? ' hide' : '');
     if (state !== 'saved') $('exportBox').className = 'export hide';
     var h = '';
@@ -887,14 +887,11 @@
     switch (st.key) {
       case 'queued': return b('pause', 'sec', '暂停') + b('delete', 'warn', '删除');
       case 'pausedFree': return b('start', 'sec', '启动') + b('delete', 'warn', '删除');
-      case 'downloading':
-      case 'queuedDev': return b('pause', 'sec', '暂停') + b('cancel', 'sec', '取消') + b('delete', 'warn', '删除');
+      case 'downloading': return b('pause', 'sec', '暂停') + b('cancel', 'sec', '取消') + b('delete', 'warn', '删除');
       case 'paused': return b('start', 'sec', '启动') + b('cancel', 'sec', '取消') + b('delete', 'warn', '删除');
       case 'done':
-      case 'failed':
-      case 'canceled': return b('restart', 'sec', '重启') + b('delete', 'warn', '删除');
-      case 'deleted': return '';
-      default: return '';
+      case 'failed': return b('restart', 'sec', '重启') + b('delete', 'warn', '删除');
+      default: return b('pause', 'sec', '暂停') + b('delete', 'warn', '删除');
     }
   }
 
@@ -970,29 +967,35 @@
     } catch (e) { msg('操作失败：' + e.message, true); }
   }
 
+  /**
+   * 状态只有 6 种：绿 = 队列中（未认领）/ 暂停队列（未认领），
+   * 蓝 = 下载中 / 暂停中 / 已完成 / 失败。历史遗留的 canceled / deleted / 空标记一律按「队列中（未认领）」处理。
+   */
   function stateOf(item) {
-    var s = rdl(item.body);
-    if (!s) return { key: item.state === 'closed' ? 'closed' : 'waiting', label: item.state === 'closed' ? '已关闭' : '等待 App 上报' };
+    var s = rdl(item.body) || {};
     var dev = String(s.dev || '');
-    var k = s.s || 'waiting';
+    var k = s.s || 'queued';
     if (k === 'queued') {
-      return dev ? { key: 'queuedDev', label: '队列中（已认领）', data: s }
+      return dev ? { key: 'downloading', label: '下载中', data: s }
                  : { key: 'queued', label: '队列中（未认领）', data: s };
     }
     if (k === 'paused') {
       return dev ? { key: 'paused', label: '暂停中', data: s }
                  : { key: 'pausedFree', label: '暂停队列（未认领）', data: s };
     }
-    var map = { downloading: '下载中', done: '已完成', failed: '失败', canceled: '已取消', deleted: '已删除' };
-    return { key: k, label: map[k] || k, data: s };
+    if (k === 'downloading') return { key: 'downloading', label: '下载中', data: s };
+    if (k === 'done') return { key: 'done', label: '已完成', data: s };
+    if (k === 'failed') return { key: 'failed', label: '失败', data: s };
+    return { key: 'queued', label: '队列中（未认领）', data: s };
   }
+
   /** 筛选：状态 + 设备（dev 为空 = 未认领）；只重渲染缓存，不发请求。 */
   function matchFilter(it, st) {
     var dev = String((st.data || {}).dev || '');
     if (filterDev === '') { if (dev) return false; }
     else if (filterDev !== 'all' && dev !== filterDev) return false;
     if (filterStatus === 'all') return true;
-    if (filterStatus === 'unclaimed') return !dev && st.key !== 'deleted';
+    if (filterStatus === 'unclaimed') return !dev;
     return st.key === filterStatus;
   }
 
@@ -1032,7 +1035,7 @@
       // 设备按键 = 状态图里该状态的出边：启动 → 暂停 / 停止；暂停 → 启动 / 停止；停止 → 无
       var btns = '';
       if (willDelete) {
-        btns += '<span class="badge st-stop">待删除</span>';
+        btns += '';
       } else if (stt === 'start') {
         btns += '<button class="sec sm" data-devcmd="pause" data-n="' + n + '">暂停</button>';
         btns += '<button class="warn sm" data-devcmd="stop" data-n="' + n + '">停止</button>';
@@ -1045,12 +1048,11 @@
       html += '<div class="dev">'
         + '<div class="dev-head"><span class="dev-name">' + esc(d.model) + '</span>'
         + '<span class="badge st-' + stt + '">' + stName + '</span>'
-        + '<span class="badge ' + (on ? 'done' : 'closed') + '">' + (on ? '在线' : '离线') + '</span>'
         + '<span class="dev-id">' + esc(d.id) + '</span></div>'
         + '<div class="meta">电量 ' + esc(bat) + (x.charging ? ' · 充电中' : '')
         + ' · WiFi ' + esc(x.wifi == null || x.wifi === '' ? '—' : x.wifi)
         + ' · 上报 ' + (Number(x.ts) ? esc(new Date(Number(x.ts)).toLocaleTimeString('zh-CN')) : '无')
-        + (x.cmd ? ' · 待执行指令 ' + esc(x.cmd) : '')
+        + (x.cmd === 'delete' ? ' · 已下发删除' : (x.cmd ? ' · 待执行 ' + esc(x.cmd) : ''))
         + '</div>'
         + '<div class="dev-actions">' + btns + '</div>'
         + '<div class="dev-max">并发上限 <select data-devmax="1" data-n="' + n + '" aria-label="并发上限">'
@@ -1121,7 +1123,7 @@
         + (st.key === 'downloading' ? ' ' + pct + '%' : '') + '</span>'
         + '<span class="badge ' + (dev ? 'dev' : 'unclaimed') + '">'
         + esc(dev ? devNameOf(dev, devs) : '未认领') + '</span>'
-        + (it.state === 'closed' ? '<span class="badge closed">已关闭</span>' : '') + '</div>'
+        + '</div>'
         + '<div class="name" title="' + esc(url) + '">' + esc(fileNameOf(url)) + '</div>'
         + '<div class="url fold" title="点击展开 / 收起">' + esc(url) + '</div>'
         + '<div class="bar ' + barCls + '"><i style="width:' + pct + '%"></i></div>'
