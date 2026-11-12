@@ -917,7 +917,8 @@
     try {
       await patchIssue(it.number, { body: setDevTag(it.body, next) });
       var cm = patch.cmd;
-      devMsg(cm === 'stop' ? '已下发「停止」：设备会停止并退出'
+      devMsg(cm === 'delete' ? '已下发「删除」：设备会清除 pat、清空槽位并退出'
+        : cm === 'stop' ? '已下发「停止」：设备会停止并退出'
         : cm === 'pause' ? '已下发「暂停」：设备不再认领与下载，心跳保留'
         : cm === 'start' ? '已下发「启动」：设备恢复认领与下载'
         : '并发上限已改为 ' + next.max);
@@ -960,7 +961,8 @@
             total: reset ? 0 : cur.total }), []) });
         msg('已重启：回到「队列中（未认领）」');
       } else if (act === 'delete') {
-        // 删除：清空 issue 内容，槽位回到「空闲槽位」可复用
+        // 删除：二次确认后清空 issue 内容，槽位回到「空闲槽位」可复用
+        if (!window.confirm('删除 #' + item.number + '？\n\n任务内容会被清空，槽位回到「空闲槽位」可被复用。')) return;
         await patchIssue(item.number, { title: '空闲槽位', body: '', state: 'open' });
         msg('已删除 #' + item.number + '，槽位回到「空闲槽位」');
       }
@@ -1022,13 +1024,16 @@
       var max = Math.max(1, Math.min(5, Number(x.max) || 2));
       var stt = x.st === 'pause' ? 'pause' : (x.st === 'stop' ? 'stop' : 'start');
       var stName = stt === 'pause' ? '暂停' : (stt === 'stop' ? '停止' : '启动');
+      var willDelete = x.cmd === 'delete';
       var opts = '';
       for (var i = 1; i <= 5; i++) {
         opts += '<option value="' + i + '"' + (i === max ? ' selected' : '') + '>' + i + '</option>';
       }
       // 设备按键 = 状态图里该状态的出边：启动 → 暂停 / 停止；暂停 → 启动 / 停止；停止 → 无
       var btns = '';
-      if (stt === 'start') {
+      if (willDelete) {
+        btns += '<span class="badge st-stop">待删除</span>';
+      } else if (stt === 'start') {
         btns += '<button class="sec sm" data-devcmd="pause" data-n="' + n + '">暂停</button>';
         btns += '<button class="warn sm" data-devcmd="stop" data-n="' + n + '">停止</button>';
       } else if (stt === 'pause') {
@@ -1067,11 +1072,12 @@
         var n = Number(b.getAttribute('data-n'));
         var d = devs.filter(function (v) { return v.issue.number === n; })[0];
         if (!d) return;
-        if (!window.confirm('删除设备「' + (d.model || d.id) + '」？\n\n清空它占用的槽位，回到「空闲槽位」可被复用。')) return;
-        patchIssue(n, { title: '空闲槽位', body: '', state: 'open' }).then(function () {
-          devMsg('已删除设备槽位，槽位回到「空闲槽位」');
-          refresh();
-        }).catch(function (e) { devMsg('删除失败：' + e.message, true); });
+        if (!window.confirm('删除设备「' + (d.model || d.id) + '」？\n\n'
+          + '设备下次上报时会清除它自己的 pat 并退出，槽位回到「空闲槽位」；'
+          + '之后控制台不再显示这台设备。')) return;
+        patchDev(d, { cmd: 'delete' }).catch(function (e) {
+          devMsg('删除失败：' + e.message, true);
+        });
       });
     });
     Array.prototype.forEach.call(box.querySelectorAll('select[data-devmax]'), function (s) {
