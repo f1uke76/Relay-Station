@@ -55,6 +55,11 @@
   .badge.closed { background: #2b2b30; color: #8b919a; }
   .badge.dev { background: #1d2b3a; color: #9dc4ff; }
   .badge.unclaimed { background: #262b34; color: #9aa0a6; }
+  .badge.queued, .badge.pausedFree { background: #17321f; color: #9fe0a8; }
+  .badge.queuedDev { background: #123a6b; color: #9dc4ff; }
+  .badge.st-start { background: #3a2b12; color: #ffcf9a; }
+  .badge.st-pause { background: #3a3320; color: #ffd08a; }
+  .badge.st-stop { background: #2b2b30; color: #8b919a; }
   .name { font-size: 13px; font-weight: 600; color: #dfe4ea; word-break: break-all; margin-top: 8px; }
   .url { font: 11px/1.5 ui-monospace, monospace; color: #8b919a; word-break: break-all; margin: 3px 0 0; cursor: pointer; }
   .url.fold { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
@@ -77,8 +82,10 @@
   .dev-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .dev-name { font-size: 13px; font-weight: 600; color: #dfe4ea; }
   .dev-id { font: 11px ui-monospace, monospace; color: #6f7680; }
-  .dev-actions { display: grid; grid-template-columns: minmax(0, 1fr) 84px 56px; gap: 8px; margin-top: 10px; }
-  .dev-actions button, .dev-actions select { width: 100%; min-width: 0; }
+  .dev-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .dev-actions button { flex: 1 1 0; min-width: 0; }
+  .dev-max { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: #8b919a; }
+  .dev-max select { width: 64px; }
   .empty { color: #8b919a; font-size: 13px; padding: 14px 0; text-align: center; }
   details { margin-top: 10px; }
   summary { cursor: pointer; font-size: 12px; color: #9aa0a6; }
@@ -256,13 +263,12 @@
     <div class="filters">
       <select id="fStatus" aria-label="按状态筛选">
         <option value="all">全部状态</option>
-        <option value="queued">排队中</option>
+        <option value="queued">队列中（未认领）</option>
+        <option value="pausedFree">暂停队列（未认领）</option>
         <option value="downloading">下载中</option>
-        <option value="paused">已暂停</option>
+        <option value="paused">暂停中</option>
         <option value="done">已完成</option>
         <option value="failed">失败</option>
-        <option value="canceled">已取消</option>
-        <option value="deleted">已删除</option>
         <option value="unclaimed">未认领</option>
       </select>
       <select id="fDev" aria-label="按设备筛选">
@@ -865,19 +871,31 @@
       refresh();
     } catch (e) { msg('提交失败：' + e.message, true); }
   });
-  /** 每个状态该出现哪些按钮（成对切换，不出现孤立按钮）。 */
+  /**
+   * 按钮 = 该状态的出边，一条边一个按钮，文字与状态图上的线一字不差：
+   *   队列中（未认领）：暂停、删除
+   *   暂停队列（未认领）：启动、删除
+   *   下载中：暂停、取消、删除
+   *   暂停中：启动、取消、删除
+   *   已完成 / 失败：重启、删除
+   */
   function actionsFor(it, st) {
     var n = it.number;
     var b = function (act, cls, text) {
       return '<button class="' + cls + '" data-act="' + act + '" data-n="' + n + '">' + text + '</button>';
     };
-    if (st.key === 'deleted') return b('purge', 'warn', '清空槽位');
-    if (st.key === 'canceled') return b('start', 'sec', '重启任务') + b('delete', 'warn', '清空槽位');
-    if (st.key === 'paused') return b('start', 'sec', '开始任务') + b('cancel', 'warn', '取消任务');
-    if (st.key === 'done' || st.key === 'failed' || st.key === 'closed') {
-      return b('start', 'sec', '重启任务') + b('delete', 'warn', '清空槽位');
+    switch (st.key) {
+      case 'queued': return b('pause', 'sec', '暂停') + b('delete', 'warn', '删除');
+      case 'pausedFree': return b('start', 'sec', '启动') + b('delete', 'warn', '删除');
+      case 'downloading':
+      case 'queuedDev': return b('pause', 'sec', '暂停') + b('cancel', 'sec', '取消') + b('delete', 'warn', '删除');
+      case 'paused': return b('start', 'sec', '启动') + b('cancel', 'sec', '取消') + b('delete', 'warn', '删除');
+      case 'done':
+      case 'failed':
+      case 'canceled': return b('restart', 'sec', '重启') + b('delete', 'warn', '删除');
+      case 'deleted': return '';
+      default: return '';
     }
-    return b('pause', 'sec', '暂停任务') + b('cancel', 'warn', '取消任务');
   }
 
   async function patchIssue(n, payload) {
@@ -898,16 +916,17 @@
     if ('ts' in old) next.ts = old.ts;
     try {
       await patchIssue(it.number, { body: setDevTag(it.body, next) });
-      devMsg(patch.cmd === 'stop'
-        ? '已下发 stop：设备会停止当前任务并退出'
-        : '并发上限已改为 ' + next.max + '，设备下次轮询生效');
+      var cm = patch.cmd;
+      devMsg(cm === 'stop' ? '已下发「停止」：设备会停止并退出'
+        : cm === 'pause' ? '已下发「暂停」：设备不再认领与下载，心跳保留'
+        : cm === 'start' ? '已下发「启动」：设备恢复认领与下载'
+        : '并发上限已改为 ' + next.max);
       refresh();
     } catch (e) { devMsg('操作失败：' + e.message, true); }
   }
 
   /** 暂停 / 开始 / 取消认领 / 删除记录 / 永久删除。 */
   async function runAction(item, act) {
-    if (act === 'purge') { await purgeIssue(item); return; }
     if (!token) { msg('需要先配置主令牌', true); return; }
     var st = rdl(item.body) || {};
     var first = rawFirstLine(item.body);
@@ -915,46 +934,55 @@
                 total: Number(st.total) || 0, ts: Number(st.ts) || 0, dev: String(st.dev || '') };
     try {
       if (act === 'pause') {
+        // 暂停：保留认领与已下载分片，写 paused + PAUSE 标记
         await patchIssue(item.number, { state: 'open',
           body: taskBody(first, extend(cur, { s: 'paused' }), ['<!--RDL-PAUSE-->']) });
-        msg('已暂停：App 下次检查会跳过该任务，已下载的分片保留');
+        msg(cur.dev ? '已暂停：回到「暂停中」，分片保留'
+                    : '已暂停：回到「暂停队列（未认领）」，分片保留');
       } else if (act === 'start') {
+        // 启动：保留认领（暂停中 → 下载中）或保持未认领（暂停队列 → 队列中）
         await patchIssue(item.number, { state: 'open',
-          body: taskBody(first, extend(cur, { s: 'queued', dev: '' })) });
-        msg('已开始：转未认领排队，保留已下载进度（支持断点续传）');
+          body: taskBody(first, extend(cur, { s: 'queued' }), []) });
+        msg(cur.dev ? '已启动：回到「下载中」，保留已下载进度'
+                    : '已启动：回到「队列中（未认领）」，等设备认领');
       } else if (act === 'cancel') {
-        // 取消不关 issue：丢掉认领、进度归零、放开自由认领
+        // 取消：进度归零、解除认领，回到队列中（未认领）
         await patchIssue(item.number, { state: 'open',
-          body: taskBody(first, extend(cur, { s: 'queued', p: 0, dev: '' })) });
-        msg('已取消认领：任务转未认领排队，任何设备可自由认领');
+          body: taskBody(first, extend(cur, { s: 'queued', p: 0, dev: '' }), []) });
+        msg('已取消：回到「队列中（未认领）」，进度归零');
+      } else if (act === 'restart') {
+        // 重启：已完成从 0 开始，失败保留断点；都解除认领
+        var done = Number(cur.done) || 0, total = Number(cur.total) || 0;
+        var reset = cur.s === 'done' || (total > 0 && done >= total);
+        await patchIssue(item.number, { state: 'open',
+          body: taskBody(first, extend(cur, {
+            s: 'queued', dev: '', p: reset ? 0 : cur.p, done: reset ? 0 : cur.done,
+            total: reset ? 0 : cur.total }), []) });
+        msg('已重启：回到「队列中（未认领）」');
       } else if (act === 'delete') {
-        // 清空内容、保持 open，槽位留给后续任务复用
+        // 删除：清空 issue 内容，槽位回到「空闲槽位」可复用
         await patchIssue(item.number, { title: '空闲槽位', body: '', state: 'open' });
-        msg('已清空 #' + item.number + '，该槽位可被新任务复用');
+        msg('已删除 #' + item.number + '，槽位回到「空闲槽位」');
       }
       refresh();
     } catch (e) { msg('操作失败：' + e.message, true); }
   }
 
-  /** 清空槽位：保留 issue，只清空内容并保持 open，供后续任务或设备复用。 */
-  async function purgeIssue(it) {
-    if (!token) { msg('需要先配置主令牌', true); return; }
-    if (!window.confirm('清空槽位 #' + it.number + '？\n\n内容会被清空，issue 保留并可被新任务复用。')) return;
-    try {
-      await patchIssue(it.number, { title: '空闲槽位', body: '', state: 'open' });
-      msg('已清空槽位 #' + it.number);
-      refresh();
-    } catch (e) {
-      msg('清空失败：' + e.message, true);
-    }
-  }
-
   function stateOf(item) {
     var s = rdl(item.body);
     if (!s) return { key: item.state === 'closed' ? 'closed' : 'waiting', label: item.state === 'closed' ? '已关闭' : '等待 App 上报' };
-    var map = { queued: '排队中', downloading: '下载中', paused: '已暂停', done: '已完成',
-                failed: '失败', canceled: '已取消', deleted: '已删除' };
-    return { key: s.s || 'waiting', label: map[s.s] || s.s, data: s };
+    var dev = String(s.dev || '');
+    var k = s.s || 'waiting';
+    if (k === 'queued') {
+      return dev ? { key: 'queuedDev', label: '队列中（已认领）', data: s }
+                 : { key: 'queued', label: '队列中（未认领）', data: s };
+    }
+    if (k === 'paused') {
+      return dev ? { key: 'paused', label: '暂停中', data: s }
+                 : { key: 'pausedFree', label: '暂停队列（未认领）', data: s };
+    }
+    var map = { downloading: '下载中', done: '已完成', failed: '失败', canceled: '已取消', deleted: '已删除' };
+    return { key: k, label: map[k] || k, data: s };
   }
   /** 筛选：状态 + 设备（dev 为空 = 未认领）；只重渲染缓存，不发请求。 */
   function matchFilter(it, st) {
@@ -989,38 +1017,49 @@
     if (!devs.length) { box.innerHTML = ''; devHtml = ''; return; }
     var html = '';
     devs.forEach(function (d) {
-      var x = d.data || {}, on = isOnline(x);
+      var x = d.data || {}, on = isOnline(x), n = d.issue.number;
       var bat = typeof x.battery === 'number' ? x.battery + '%' : '—';
       var max = Math.max(1, Math.min(5, Number(x.max) || 2));
+      var stt = x.st === 'pause' ? 'pause' : (x.st === 'stop' ? 'stop' : 'start');
+      var stName = stt === 'pause' ? '暂停' : (stt === 'stop' ? '停止' : '启动');
       var opts = '';
       for (var i = 1; i <= 5; i++) {
         opts += '<option value="' + i + '"' + (i === max ? ' selected' : '') + '>' + i + '</option>';
       }
+      // 设备按键 = 状态图里该状态的出边：启动 → 暂停 / 停止；暂停 → 启动 / 停止；停止 → 无
+      var btns = '';
+      if (stt === 'start') {
+        btns += '<button class="sec sm" data-devcmd="pause" data-n="' + n + '">暂停</button>';
+        btns += '<button class="warn sm" data-devcmd="stop" data-n="' + n + '">停止</button>';
+      } else if (stt === 'pause') {
+        btns += '<button class="sec sm" data-devcmd="start" data-n="' + n + '">启动</button>';
+        btns += '<button class="warn sm" data-devcmd="stop" data-n="' + n + '">停止</button>';
+      }
+      btns += '<button class="warn sm" data-devdel="1" data-n="' + n + '">删除</button>';
+
       html += '<div class="dev">'
         + '<div class="dev-head"><span class="dev-name">' + esc(d.model) + '</span>'
+        + '<span class="badge st-' + stt + '">' + stName + '</span>'
         + '<span class="badge ' + (on ? 'done' : 'closed') + '">' + (on ? '在线' : '离线') + '</span>'
         + '<span class="dev-id">' + esc(d.id) + '</span></div>'
         + '<div class="meta">电量 ' + esc(bat) + (x.charging ? ' · 充电中' : '')
         + ' · WiFi ' + esc(x.wifi == null || x.wifi === '' ? '—' : x.wifi)
-        + ' · 并发上限 ' + max
         + ' · 上报 ' + (Number(x.ts) ? esc(new Date(Number(x.ts)).toLocaleTimeString('zh-CN')) : '无')
+        + (x.cmd ? ' · 待执行指令 ' + esc(x.cmd) : '')
         + '</div>'
-        + '<div class="dev-actions">'
-        + '<button class="sec sm" data-devstop="1" data-n="' + d.issue.number + '"'
-        + (x.cmd === 'stop' ? ' disabled' : '') + '>'
-        + (x.cmd === 'stop' ? '已下发停止' : '停止并退出') + '</button>'
-        + '<select data-devmax="1" data-n="' + d.issue.number + '" aria-label="并发上限">' + opts + '</select>'
-        + '<button class="warn sm" data-devdel="1" data-n="' + d.issue.number + '">删除</button>'
-        + '</div></div>';
+        + '<div class="dev-actions">' + btns + '</div>'
+        + '<div class="dev-max">并发上限 <select data-devmax="1" data-n="' + n + '" aria-label="并发上限">'
+        + opts + '</select></div>'
+        + '</div>';
     });
     if (html === devHtml) return;   // 内容没变：保留正在操作的下拉
     devHtml = html;
     box.innerHTML = html;
-    Array.prototype.forEach.call(box.querySelectorAll('button[data-devstop]'), function (b) {
+    Array.prototype.forEach.call(box.querySelectorAll('button[data-devcmd]'), function (b) {
       b.addEventListener('click', function () {
         var n = Number(b.getAttribute('data-n'));
         var d = devs.filter(function (v) { return v.issue.number === n; })[0];
-        if (d) patchDev(d, { cmd: 'stop' });
+        if (d) patchDev(d, { cmd: b.getAttribute('data-devcmd') });
       });
     });
     Array.prototype.forEach.call(box.querySelectorAll('button[data-devdel]'), function (b) {
@@ -1028,11 +1067,11 @@
         var n = Number(b.getAttribute('data-n'));
         var d = devs.filter(function (v) { return v.issue.number === n; })[0];
         if (!d) return;
-        if (!window.confirm('删除设备「' + (d.model || d.id) + '」？\n\n清空它占用的槽位，issue 保留并可被复用。')) return;
+        if (!window.confirm('删除设备「' + (d.model || d.id) + '」？\n\n清空它占用的槽位，回到「空闲槽位」可被复用。')) return;
         patchIssue(n, { title: '空闲槽位', body: '', state: 'open' }).then(function () {
-          devMsg('已清空设备槽位，可被新任务或其它设备复用');
+          devMsg('已删除设备槽位，槽位回到「空闲槽位」');
           refresh();
-        }).catch(function (e) { devMsg('清空失败：' + e.message, true); });
+        }).catch(function (e) { devMsg('删除失败：' + e.message, true); });
       });
     });
     Array.prototype.forEach.call(box.querySelectorAll('select[data-devmax]'), function (s) {
