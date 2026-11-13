@@ -7,12 +7,13 @@
 ## 一、本中转库的界面逻辑
 
 - 本仓库是公开仓库，GitHub Pages 从 `main` 分支根目录 `/` 发布，站点根为 `https://f1uke76.github.io/Relay-Station/`。
-- 根 `index.html` 只做入口导航：视觉上严格保持「两行文字 + 两个链接」，格式为
+- 根 `index.html` 只做入口导航：视觉上严格保持「每组名称一行 + 网址一行」，格式为
   `名称：` 换行 `完整网址`。**禁止**加表格、卡片、按钮组、图标、私有库介绍或任何其它可见内容；
   给 Agent 的说明只能放在 HTML 注释或本规范文档里。
 - 每个控制台是一个独立子目录，目录里放自己的 `index.html`（以及可选的 CSS / JS），
   网址为 `https://f1uke76.github.io/Relay-Station/<子目录名>/`。各页面资源用相对路径，互不依赖。
-- 目前只有一个控制台：`RemoteDL-Queue/`，即远程下载控制台，专用于远程下载指令。
+- 目前有两个控制台：`RemoteDL-Queue/`（远程下载指令）与 `wake-console/`（远程开机策略，
+  写 `wake-console/state.txt` 供路由器读取，**不走 Issues 队列**）。
 - App（Android，源码在私有库）的「打开中转网页」与导出链接都指向
   `RemoteDL-Queue/` 的完整地址。若改动该路径，必须同步改 App 常量 `Prefs.WEB_URL`、
   网页常量 `WEB_URL`，重新编译并推送 APK，否则按钮会指向 404。
@@ -50,6 +51,7 @@
 5. 若新控制台也用 Issues 传指令，指令首行必须使用与 `ADD https://` 不同的前缀，
    并在本规范「界面逻辑」补一行说明，避免与远程下载 App 串队列。
 6. 同步更新私有库 `f1uke76/RemoteDL` 的 `console/` 源码副本与其 README 中的页面清单。
+   **仅当该控制台有 App 端时执行**；纯网页控制台（如 `wake-console/`）跳过本条，也不涉及重编译 APK。
 7. 部署用 GitHub Contents API（`PUT` 必须带当前文件 `sha`），不要用 `git push`（本机代理不稳）。
    改完用带随机 query 的请求复核 Pages 已刷新，并检查 `pages/builds/latest` 为 `built`。
 8. 完成后在回复里给出新增页面的完整网址，并说明是否需要同步改 App。
@@ -105,6 +107,26 @@
   版本比较按数字段逐段比（忽略 `v` 前缀），禁止用字符串比较。有新版只弹窗说明并跳浏览器下载，
   **不做应用内静默安装**（避免引入安装权限与 FileProvider 风险）。
 
+## 四之四、远程开机控制台（wake-console，务必保持）
+
+- 定位：用户在网页上设「路由器联网后要不要自动唤醒电脑」，路由器（小米路由器 mini / Padavan）
+  联网后读取 `wake-console/state.txt` 决定是否发 Wake-on-LAN 魔术包。
+- **不走 Issues 队列**：状态只落在 `state.txt`，因此不需要任何指令前缀，也不会被远程下载 App
+  误判成 `ADD https://` 任务。禁止把唤醒指令塞进 Issues。
+- 状态文件是纯文本 `key=value`，一行一键、值内**不含空格**、`#` 开头为注释，路由器直接 `.` 或
+  `source` 读取。当前键：`enabled`（1/0 自动唤醒）、`mode`（all/win）、`window`（`all` 或
+  `HH:MM-HH:MM`，允许跨零点）、`cooldown`（分钟）、`mac`（可空，空则用路由器本机 MAC）、
+  `req`（Unix 秒，一次性唤醒请求，路由器比对后执行一次）、`req_at`（写入时间）、`updated`。
+  新增键必须保持「无空格 + 可被 sh 直接 source」两条硬约束。
+- 令牌权限只需 `Relay-Station` 的 **Contents: Read and write**，不要向用户索要 Issues 权限；
+  令牌存浏览器 localStorage（键 `wol.pat`），**禁止**写进 `state.txt`、页面或仓库任何文件。
+- MAC 默认留空：目标网卡地址优先由路由器本地配置持有，公开库只在用户主动填写时下发覆盖值。
+- GitHub Pages 对静态文件有约 10 分钟缓存：任何读取方（含路由器、含人工核对）必须带
+  `?t=<epoch>` 破缓存；控制台写入后要提示「约 1 分钟（重新构建）后生效」。
+- 网页只放操作元素（开关、时段、冷却、保存、立即唤醒、令牌），说明文字放本文件；
+  版式沿用四之三的骨架：手机顺序 策略 → 立即唤醒 → 路由器 → 连接 GitHub，电脑端左列独占策略卡。
+- 禁止在 `wake-console/` 页面里直接发 WOL 包或调用路由器接口：控制台只写文件，执行侧永远在路由器。
+
 ## 五、禁止事项
 
 - 禁止在本公开仓库存放任何令牌、`pat.md`、APK、源码或带签名参数的私密链接。
@@ -116,6 +138,8 @@
 - App 的按钮网格必须用 `removeAllViews()` 后按状态重新 `addView`：`GridLayout` 里 `GONE` 的按钮仍占格子，
   只切 visibility 会留出空位（曾出现「第一行第一格空着」）。
 - 禁止只改网页或只改 App 的 PAT 填写指引；两端文案与私有库 `console/` 源码副本必须同步更新（见第四节）。
+- 禁止把令牌、MAC 之外的可识别信息写进 `wake-console/state.txt`；禁止让路由器侧以任何方式写回本文件
+  （路由器只读，写入只来自网页）。
 
 ## 六、版本
 
