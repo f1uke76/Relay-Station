@@ -1,0 +1,10 @@
+# 远程开机状态文件 · 由 wake-console 写入，路由器只读
+# 键值均无空格；路由器用 . 或 source 读取，禁止写入令牌
+enabled=1
+mode=all
+window=all
+cooldown=30
+mac=
+req=0
+req_at=
+updated=2026-11-14_02:50
