@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>远程开机 · 控制台</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 14px 40px;
+    background: #0f1115; color: #e8eaed;
+    font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 16px; }
+  .card { background: #1a1d23; border: 1px solid #2a2e36; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+  .card h2 { font-size: 14px; font-weight: 600; margin: 0 0 10px; color: #cfd4da; display: flex; align-items: center; gap: 8px; }
+  label { display: block; font-size: 12px; color: #9aa0a6; margin: 0 0 5px; }
+  .field { margin-top: 10px; }
+  input[type=text], input[type=password], input[type=number], input[type=time], select {
+    width: 100%; background: #10131a; color: #e8eaed;
+    border: 1px solid #343a45; border-radius: 8px; padding: 9px 11px;
+    font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  select { -webkit-appearance: none; appearance: none; }
+  input:focus, select:focus { outline: none; border-color: #1f6feb; }
+  input:disabled { opacity: .45; }
+  .row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  button {
+    flex: 1 1 auto; min-width: 110px; padding: 9px 12px;
+    border-radius: 8px; border: 1px solid #1f6feb;
+    background: #1f6feb; color: #fff; font-size: 13px; cursor: pointer;
+  }
+  button.sec { background: transparent; color: #a8c7ff; border-color: #39465c; }
+  button.warn { background: transparent; color: #ffb4a8; border-color: #6a3b36; }
+  button.sm { min-width: 0; flex: 0 0 auto; padding: 6px 10px; font-size: 12px; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button:active { opacity: .75; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .hint { font-size: 12px; color: #8b919a; margin: 10px 0 0; }
+  .msg { font-size: 12px; min-height: 18px; margin-top: 8px; color: #8ce0a8; }
+  .msg:empty, .tokstat:empty, .status-line:empty { display: none; }
+  .msg.err { color: #ff9c8f; }
+  a { color: #8ab4f8; }
+  .badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: #2a3140; color: #b9c6da; }
+  .badge.on { background: #17412c; color: #96e6b3; }
+  .badge.off { background: #3a3320; color: #ffd08a; }
+  .badge.bad { background: #4a2222; color: #ffab9f; }
+  .status-line { font-size: 12px; color: #8b919a; margin-top: 8px; font-family: ui-monospace, monospace; }
+  code { background: #10131a; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .tokline { display: flex; gap: 8px; align-items: center; }
+  .tokline input { flex: 1; }
+  .tokstat { font-size: 12px; color: #8ce0a8; margin-top: 6px; }
+  .tokstat.bad { color: #ff9c8f; }
+  .row.pat-actions, .row.grid-actions { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 8px; }
+  .row.pat-actions button, .row.grid-actions button { width: 100%; min-width: 0; padding-left: 6px; padding-right: 6px; }
+  .raw { font: 11px/1.7 ui-monospace, monospace; color: #9aa0a6; background: #10131a;
+         border-radius: 8px; padding: 10px; margin-top: 10px; word-break: break-all; white-space: pre-wrap; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; font-size: 12px; color: #9aa0a6; }
+  .hide { display: none; }
+  .layout { display: flex; flex-direction: column; }
+  .card-policy { order: 1; }
+  .card-now { order: 2; }
+  .card-dev { order: 3; }
+  .card-pat { order: 4; }
+  @media (min-width: 900px) {
+    .wrap { max-width: 1040px; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+      grid-template-areas: "policy now" "policy pat" "policy dev";
+      gap: 14px; align-items: start;
+    }
+    .card-policy, .card-now, .card-pat, .card-dev { margin: 0; }
+    .card-policy { grid-area: policy; }
+    .card-now { grid-area: now; }
+    .card-pat { grid-area: pat; }
+    .card-dev { grid-area: dev; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>远程开机 · 控制台</h1>
+  <div class="layout">
+
+    <div class="card card-policy">
+      <h2>唤醒策略 <span id="stateBadge" class="badge">未读取</span></h2>
+
+      <div class="field">
+        <label for="enabled">联网后自动唤醒</label>
+        <select id="enabled">
+          <option value="1">开启 —— 路由器连上网就发唤醒包</option>
+          <option value="0">关闭 —— 只响应「立即唤醒」</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="mode">生效时机</label>
+        <select id="mode">
+          <option value="all">全天任意时刻</option>
+          <option value="win">仅在指定时段内</option>
+        </select>
+      </div>
+
+      <div class="two">
+        <div>
+          <label for="tFrom">起始时间</label>
+          <input type="time" id="tFrom" value="07:00" disabled>
+        </div>
+        <div>
+          <label for="tTo">结束时间</label>
+          <input type="time" id="tTo" value="23:59" disabled>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="cool">冷却时间（分钟）</label>
+        <input type="number" id="cool" min="1" max="1440" step="1" value="30">
+      </div>
+
+      <div class="field">
+        <label for="mac">目标网卡 MAC（可留空）</label>
+        <input type="text" id="mac" placeholder="留空则用路由器本机配置的 MAC" autocomplete="off">
+      </div>
+
+      <div class="row">
+        <button id="btnSave">保存到中转站</button>
+      </div>
+      <div class="msg" id="msgPolicy"></div>
+      <div class="status-line" id="savedLine"></div>
+    </div>
+
+    <div class="card card-now">
+      <h2>立即唤醒</h2>
+      <div class="row">
+        <button id="btnWakeNow">写入唤醒请求</button>
+      </div>
+      <div class="msg" id="msgNow"></div>
+      <div class="status-line" id="reqLine"></div>
+    </div>
+
+    <div class="card card-pat">
+      <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
+      <div class="tokline hide" id="tokenRow">
+        <input type="password" id="token" placeholder="github_pat_..." autocomplete="off">
+      </div>
+      <div class="row pat-actions" id="patActions"></div>
+      <div class="tokstat" id="tokStat"></div>
+
+      <details id="patGuide">
+        <summary>令牌要勾哪些权限</summary>
+        <p class="hint">账号 <b>f1uke76</b> 登录 GitHub → Settings → Developer settings → Personal access tokens →
+          Fine-grained tokens。Resource owner 选 <b>f1uke76</b>；Expiration 选 <b>No expiration</b>；
+          Repository access 只勾 <code>Relay-Station</code> 即可；<b>Contents 设为 Read and write</b>（本页只改一个状态文件，
+          不需要 Issues 权限）。令牌只存在本机浏览器，不写进仓库。</p>
+      </details>
+    </div>
+
+    <div class="card card-dev">
+      <h2>路由器取值</h2>
+      <div class="raw" id="stateUrl">https://f1uke76.github.io/Relay-Station/wake-console/state.txt</div>
+      <div class="row">
+        <button class="sec sm" id="btnCopyUrl">复制状态文件地址</button>
+        <button class="sec sm" id="btnCopyCmd">复制路由器取值命令</button>
+        <button class="sec sm" id="btnRefresh">刷新状态</button>
+      </div>
+      <div class="status-line" id="buildLine"></div>
+      <div class="msg" id="msgDev"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  const OWNER = 'f1uke76', REPO = 'Relay-Station', BRANCH = 'main';
+  const FPATH = 'wake-console/state.txt';
+  const API = 'https://api.github.com';
+  const STATE_URL = 'https://f1uke76.github.io/Relay-Station/wake-console/state.txt';
+  const LS_KEY = 'wol.pat';
+
+  const $ = (id) => document.getElementById(id);
+  let remoteSha = null;
+  let remoteState = {};
+
+  function token() { return localStorage.getItem(LS_KEY) || ''; }
+
+  function b64enc(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  function b64dec(b64) {
+    const bin = atob(b64.replace(/\s/g, ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  async function api(path, opt) {
+    const h = { 'Accept': 'application/vnd.github+json' };
+    if (token()) h['Authorization'] = 'Bearer ' + token();
+    const res = await fetch(API + path, Object.assign({}, opt || {}, {
+      headers: Object.assign(h, (opt && opt.headers) || {})
+    }));
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = { message: text }; }
+    if (!res.ok) {
+      const err = new Error((data && data.message) || ('HTTP ' + res.status));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function parseState(text) {
+    const out = {};
+    text.split(/\r?\n/).forEach(function (line) {
+      const m = line.match(/^\s*([a-z_]+)\s*=\s*(.*?)\s*$/);
+      if (m) out[m[1]] = m[2];
+    });
+    return out;
+  }
+
+  function nowStamp() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      '_' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function serialize(s) {
+    return [
+      '# 远程开机状态文件 · 由 wake-console 写入，路由器只读',
+      '# 键值均无空格；路由器用 . 或 source 读取，禁止写入令牌',
+      'enabled=' + (s.enabled || '1'),
+      'mode=' + (s.mode || 'all'),
+      'window=' + (s.window || 'all'),
+      'cooldown=' + (s.cooldown || '30'),
+      'mac=' + (s.mac || ''),
+      'req=' + (s.req || '0'),
+      'req_at=' + (s.req_at || ''),
+      'updated=' + (s.updated || nowStamp())
+    ].join('\n') + '\n';
+  }
+
+  function setMsg(el, text, bad) {
+    el.textContent = text || '';
+    el.className = 'msg' + (bad ? ' err' : '');
+  }
+
+  function fill(sorted) {
+    const enabled = sorted.enabled === '0' ? '0' : '1';
+    $('enabled').value = enabled;
+    const mode = sorted.mode === 'win' ? 'win' : 'all';
+    $('mode').value = mode;
+    const win = (sorted.window || 'all');
+    if (mode === 'win' && /\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}/.test(win)) {
+      const parts = win.split('-');
+      $('tFrom').value = parts[0].trim().padStart(5, '0');
+      $('tTo').value = parts[1].trim().padStart(5, '0');
+    }
+    $('cool').value = sorted.cooldown || '30';
+    $('mac').value = sorted.mac || '';
+    syncTimeInputs();
+
+    const badge = $('stateBadge');
+    badge.textContent = enabled === '1' ? (mode === 'win' ? '已开启 · 限时段' : '已开启 · 全天') : '已关闭';
+    badge.className = 'badge ' + (enabled === '1' ? 'on' : 'off');
+    $('savedLine').textContent = sorted.updated ? '状态文件更新于 ' + sorted.updated : '';
+    $('reqLine').textContent = (sorted.req && sorted.req !== '0')
+      ? '最近一次即时唤醒请求：' + (sorted.req_at || sorted.req) : '';
+  }
+
+  function syncTimeInputs() {
+    const on = $('mode').value === 'win';
+    $('tFrom').disabled = !on;
+    $('tTo').disabled = !on;
+  }
+
+  async function loadState(silent) {
+    remoteState = {};
+    remoteSha = null;
+    if (token()) {
+      try {
+        const info = await api('/repos/' + OWNER + '/' + REPO + '/contents/' + FPATH + '?ref=' + BRANCH);
+        remoteSha = info.sha;
+        remoteState = parseState(b64dec(info.content));
+      } catch (e) {
+        if (!silent) setMsg($('msgPolicy'), '读取状态文件失败：' + e.message, true);
+      }
+    }
+    if (!remoteSha) {
+      try {
+        const res = await fetch(STATE_URL + '?t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) remoteState = parseState(await res.text());
+      } catch (e) { /* 匿名读取失败不阻塞 */ }
+    }
+    if (remoteState.enabled !== undefined) fill(remoteState);
+    loadBuild();
+  }
+
+  async function loadBuild() {
+    try {
+      const b = await api('/repos/' + OWNER + '/' + REPO + '/pages/builds/latest');
+      const st = b.status || '';
+      const zh = st === 'built' ? '已构建' : (st === 'building' ? '构建中' : st);
+      $('buildLine').textContent = 'Pages ' + zh + ' · ' + (b.updated_at || b.created_at || '').replace('T', ' ').slice(0, 19);
+    } catch (e) {
+      $('buildLine').textContent = '';
+    }
+  }
+
+  async function putState(text, message) {
+    let lastErr = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const body = { message: message, content: b64enc(text), branch: BRANCH };
+        if (remoteSha) body.sha = remoteSha;
+        const r = await api('/repos/' + OWNER + '/' + REPO + '/contents/' + FPATH, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        remoteSha = r.content.sha;
+        return r;
+      } catch (e) {
+        lastErr = e;
+        if (e.status !== 409 && e.status !== 422) throw e;
+        const info = await api('/repos/' + OWNER + '/' + REPO + '/contents/' + FPATH + '?ref=' + BRANCH);
+        remoteSha = info.sha;
+      }
+    }
+    throw lastErr;
+  }
+
+  function needToken(el) {
+    if (token()) return false;
+    setMsg(el, '先在上方「连接 GitHub」里保存一个有 Contents 写权限的令牌。', true);
+    return true;
+  }
+
+  $('mode').addEventListener('change', syncTimeInputs);
+
+  $('btnSave').addEventListener('click', async function () {
+    if (needToken($('msgPolicy'))) return;
+    const btn = this;
+    btn.disabled = true;
+    setMsg($('msgPolicy'), '写入中…');
+    try {
+      const mode = $('mode').value;
+      const window = mode === 'win' ? ($('tFrom').value || '07:00') + '-' + ($('tTo').value || '23:59') : 'all';
+      const next = Object.assign({}, remoteState, {
+        enabled: $('enabled').value,
+        mode: mode,
+        window: window,
+        cooldown: String(Math.max(1, Math.min(1440, parseInt($('cool').value, 10) || 30))),
+        mac: ($('mac').value || '').trim(),
+        updated: nowStamp()
+      });
+      const text = serialize(next);
+      await putState(text, 'wake-console: update policy');
+      remoteState = parseState(text);
+      fill(remoteState);
+      setMsg($('msgPolicy'), '已写入。Pages 需重新构建，约 1 分钟内路由器才能取到新值。');
+      setTimeout(loadBuild, 4000);
+    } catch (e) {
+      setMsg($('msgPolicy'), '写入失败：' + e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  $('btnWakeNow').addEventListener('click', async function () {
+    if (needToken($('msgNow'))) return;
+    const btn = this;
+    btn.disabled = true;
+    setMsg($('msgNow'), '写入中…');
+    try {
+      const next = Object.assign({}, remoteState, {
+        req: String(Math.floor(Date.now() / 1000)),
+        req_at: nowStamp(),
+        updated: remoteState.updated || nowStamp()
+      });
+      const text = serialize(next);
+      await putState(text, 'wake-console: wake now');
+      remoteState = parseState(text);
+      fill(remoteState);
+      setMsg($('msgNow'), '请求已写入。路由器下一次联网检查时会执行一次唤醒。');
+      setTimeout(loadBuild, 4000);
+    } catch (e) {
+      setMsg($('msgNow'), '写入失败：' + e.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  function renderPat() {
+    const has = !!token();
+    $('tokenRow').classList.toggle('hide', has);
+    $('tokBadge').textContent = has ? '已保存' : '未配置';
+    $('tokBadge').className = 'badge ' + (has ? 'on' : '');
+    const box = $('patActions');
+    box.innerHTML = '';
+    box.style.setProperty('--cols', has ? '2' : '2');
+    const mk = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.className = cls;
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      box.appendChild(b);
+    };
+    if (!has) {
+      mk('验证并保存', '', async function () {
+        const v = ($('token').value || '').trim();
+        if (!v) { $('tokStat').textContent = '先粘贴令牌'; $('tokStat').className = 'tokstat bad'; return; }
+        $('tokStat').textContent = '验证中…';
+        $('tokStat').className = 'tokstat';
+        localStorage.setItem(LS_KEY, v);
+        try {
+          const me = await api('/user');
+          await api('/repos/' + OWNER + '/' + REPO + '/contents/' + FPATH + '?ref=' + BRANCH);
+          $('tokStat').textContent = '已连接 ' + me.login + '，可读写状态文件';
+          $('tokStat').className = 'tokstat';
+          renderPat();
+          loadState(true);
+        } catch (e) {
+          localStorage.removeItem(LS_KEY);
+          $('tokStat').textContent = '不可用：' + e.message;
+          $('tokStat').className = 'tokstat bad';
+          renderPat();
+        }
+      });
+      mk('从剪贴板粘贴', 'sec', async function () {
+        try {
+          const t = await navigator.clipboard.readText();
+          $('token').value = (t || '').trim();
+        } catch (e) {
+          $('tokStat').textContent = '浏览器不允许读剪贴板，请手动粘贴';
+          $('tokStat').className = 'tokstat bad';
+        }
+      });
+    } else {
+      mk('验证当前令牌', 'sec', async function () {
+        $('tokStat').textContent = '验证中…';
+        try {
+          const me = await api('/user');
+          $('tokStat').textContent = '有效 · 账号 ' + me.login;
+          $('tokStat').className = 'tokstat';
+        } catch (e) {
+          $('tokStat').textContent = '失效：' + e.message;
+          $('tokStat').className = 'tokstat bad';
+        }
+      });
+      mk('删除本机令牌', 'warn', function () {
+        localStorage.removeItem(LS_KEY);
+        $('tokStat').textContent = '已删除本机令牌';
+        $('tokStat').className = 'tokstat';
+        renderPat();
+      });
+    }
+  }
+
+  async function copy(text, el, okText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setMsg(el, okText);
+    } catch (e) {
+      setMsg(el, '复制失败，请手动选中', true);
+    }
+  }
+
+  $('btnCopyUrl').addEventListener('click', function () {
+    copy(STATE_URL, $('msgDev'), '状态文件地址已复制');
+  });
+  $('btnCopyCmd').addEventListener('click', function () {
+    copy('wget -qO- "' + STATE_URL + '?t=$(date +%s)"', $('msgDev'), '路由器取值命令已复制');
+  });
+  $('btnRefresh').addEventListener('click', function () {
+    setMsg($('msgDev'), '刷新中…');
+    loadState().then(function () { setMsg($('msgDev'), '已刷新'); });
+  });
+
+  $('stateUrl').addEventListener('click', function () {
+    copy(STATE_URL, $('msgDev'), '状态文件地址已复制');
+  });
+
+  renderPat();
+  loadState(true);
+})();
+</script>
+</body>
+</html>
