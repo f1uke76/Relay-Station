@@ -1048,7 +1048,7 @@
       html += '<div class="dev">'
         + '<div class="dev-head"><span class="dev-name">' + esc(d.model) + '</span>'
         + '<span class="badge st-' + stt + '">' + stName + '</span>'
-        + '<span class="dev-id">' + esc(d.id) + '</span></div>'
+        + '</div>'
         + '<div class="meta">电量 ' + esc(bat) + (x.charging ? ' · 充电中' : '')
         + ' · WiFi ' + esc(x.wifi == null || x.wifi === '' ? '—' : x.wifi)
         + ' · 上报 ' + (Number(x.ts) ? esc(new Date(Number(x.ts)).toLocaleTimeString('zh-CN')) : '无')
