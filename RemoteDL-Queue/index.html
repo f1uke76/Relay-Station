@@ -113,26 +113,21 @@
   .modal-card .row { margin-top: 10px; }
   .modal.hide { display: none; }
   .hide { display: none; }
-  /* 版式：手机竖排 添加下载 → 下载请求 → 设备监控 → 连接 GitHub */
-  .layout { display: flex; flex-direction: column; }
-  .card-add { order: 1; }
-  .card-list { order: 2; }
-  .card-dev { order: 3; }
-  .card-pat { order: 4; }
-  /* 电脑：左列独占「下载请求」，右列自上而下 添加下载 → 连接 GitHub → 设备监控 */
+  /* 版式：只有两块 —— 添加设备 / 设备状态；手机竖排，电脑左右分列 */
+  .layout { display: flex; flex-direction: column; gap: 14px; }
+  .card-pat { order: 1; }
+  .card-dev { order: 2; }
   @media (min-width: 900px) {
     .wrap { max-width: 1080px; }
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-      grid-template-areas: "list add" "list pat" "list dev";
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+      grid-template-areas: "pat dev";
       gap: 14px; align-items: start;
     }
-    .card-add, .card-list, .card-pat, .card-dev { margin: 0; }
-    .card-list { grid-area: list; }
-    .card-add { grid-area: add; }
+    .card-pat, .card-dev { margin: 0; }
     .card-pat { grid-area: pat; }
-    .card-dev { grid-area: dev; order: 3; }
+    .card-dev { grid-area: dev; }
   }
 </style>
 </head>
@@ -142,7 +137,7 @@
   <div class="layout">
 
   <div class="card card-pat">
-    <h2>连接 GitHub <span id="tokBadge" class="badge">未配置</span></h2>
+    <h2>添加设备 <span id="tokBadge" class="badge">未配置</span></h2>
 
     <div class="tokline hide" id="tokenRow">
       <input type="password" id="token" placeholder="github_pat_...（粘贴或点从剪贴板导入）" autocomplete="off">
@@ -241,46 +236,13 @@
 
   </div>
 
-  <div class="card card-add">
-    <h2>添加下载链接</h2>
-    <div class="add-body" id="addBody">
-      <label for="link">http / https 直链</label>
-      <input type="text" id="link" placeholder="https://example.com/file.zip" inputmode="url">
-      <div class="row">
-        <button id="btnAdd">加入队列</button>
-      </div>
-      <div class="msg" id="msg"></div>
-    </div>
-  </div>
-
-  <div class="card card-list">
-    <h2>下载请求
+  <div class="card card-dev" id="cardDev">
+    <h2>设备状态
       <button class="sec sm" id="btnRefresh">立即刷新</button>
       <button class="sec sm" id="btnAuto">自动刷新：开</button>
     </h2>
-    <div class="filters">
-      <select id="fStatus" aria-label="按状态筛选">
-        <option value="all">全部状态</option>
-        <option value="queued">队列中（未认领）</option>
-        <option value="pausedFree">暂停队列（未认领）</option>
-        <option value="downloading">下载中</option>
-        <option value="paused">暂停中</option>
-        <option value="done">已完成</option>
-        <option value="failed">失败</option>
-        <option value="unclaimed">未认领</option>
-      </select>
-      <select id="fDev" aria-label="按设备筛选">
-        <option value="all">全部设备</option>
-        <option value="">未认领</option>
-      </select>
-    </div>
-    <div id="list"><div class="empty">读取中…</div></div>
-    <div class="status-line" id="statusLine">—</div>
-  </div>
-
-  <div class="card card-dev hide" id="cardDev">
-    <h2>设备监控</h2>
     <div id="devList"></div>
+    <div class="status-line" id="statusLine">—</div>
     <div class="msg" id="devMsg"></div>
   </div>
   </div><!-- /.layout -->
@@ -330,8 +292,6 @@
   var REFRESH_MS = 5000;
   var OFFLINE_MS = 5 * 60 * 1000;   // 设备超过 5 分钟没上报即判离线
   var cache = [];                    // 最近一次拉取的 issue，筛选时只重渲染不重新请求
-  var filterStatus = 'all';
-  var filterDev = 'all';
   var devHtml = null;                // 设备区上次渲染结果，内容没变就不重建 DOM
   var MODEL = webModel();            // 本网页登记的机型
 
@@ -343,10 +303,6 @@
     + '&issues=write'
     + '&contents=write';
 
-  function msg(t, bad) {
-    var m = $('msg'); m.textContent = t; m.className = 'msg' + (bad ? ' err' : '');
-    if (t) setTimeout(function () { if (m.textContent === t) m.textContent = ''; }, 7000);
-  }
   function tokMsg(t, bad) {
     var m = $('tokMsg'); m.textContent = t; m.className = 'msg' + (bad ? ' err' : '');
     if (t) setTimeout(function () { if (m.textContent === t) m.textContent = ''; }, 9000);
@@ -838,63 +794,6 @@
     }
   }
 
-  $('btnAdd').addEventListener('click', async function () {
-    var url = $('link').value.trim();
-    if (!/^https?:\/\//i.test(url)) { msg('请填 http/https 开头的链接', true); return; }
-    if (!token) { msg('请先在上方配置主令牌（提交 Issue 需要写权限）', true); return; }
-    var line = 'ADD ' + url + ' #' + tag();
-    var body = line + '\n<!--RDL:{"s":"queued","p":0}-->\n';
-    var title = 'DL ' + new Date().toISOString().slice(0, 16).replace('T', ' ');
-    try {
-      var free = cache.filter(isEmptySlot)[0];
-      if (!free) {
-        await refresh();
-        free = cache.filter(isEmptySlot)[0];
-      }
-      if (free) {
-        // 复用已清空的槽位，不再新建 issue
-        var pr = await fetch(API + '/' + free.number, { method: 'PATCH', headers: headers(),
-          body: JSON.stringify({ title: title, body: body, state: 'open' }) });
-        if (!pr.ok) throw new Error('HTTP ' + pr.status);
-      } else {
-        var r = await fetch(API, { method: 'POST', headers: headers(),
-          body: JSON.stringify({ title: title, body: body }) });
-        if (!r.ok) {
-          var why = r.status === 401 ? '令牌无效或已过期'
-                  : r.status === 403 ? '令牌缺少中转库 Issues 写权限：到 GitHub 编辑该令牌，仓库勾 Relay-Station + RemoteDL，权限勾 Issues 与 Contents 的 Read and write（逐项见「PAT 填写指引」）'
-                  : '';
-          throw new Error('HTTP ' + r.status + (why ? '（' + why + '）' : ''));
-        }
-      }
-      $('link').value = '';
-      msg(free ? ('已复用槽位 #' + free.number) : '已加入队列，无需跳转');
-      refresh();
-    } catch (e) { msg('提交失败：' + e.message, true); }
-  });
-  /**
-   * 按钮 = 该状态的出边，一条边一个按钮，文字与状态图上的线一字不差：
-   *   队列中（未认领）：暂停、删除
-   *   暂停队列（未认领）：启动、删除
-   *   下载中：暂停、取消、删除
-   *   暂停中：启动、取消、删除
-   *   已完成 / 失败：重启、删除
-   */
-  function actionsFor(it, st) {
-    var n = it.number;
-    var b = function (act, cls, text) {
-      return '<button class="' + cls + '" data-act="' + act + '" data-n="' + n + '">' + text + '</button>';
-    };
-    switch (st.key) {
-      case 'queued': return b('pause', 'sec', '暂停') + b('delete', 'warn', '删除');
-      case 'pausedFree': return b('start', 'sec', '启动') + b('delete', 'warn', '删除');
-      case 'downloading': return b('pause', 'sec', '暂停') + b('cancel', 'sec', '取消') + b('delete', 'warn', '删除');
-      case 'paused': return b('start', 'sec', '启动') + b('cancel', 'sec', '取消') + b('delete', 'warn', '删除');
-      case 'done':
-      case 'failed': return b('restart', 'sec', '重启') + b('delete', 'warn', '删除');
-      default: return b('pause', 'sec', '暂停') + b('delete', 'warn', '删除');
-    }
-  }
-
   async function patchIssue(n, payload) {
     var r = await fetch(API + '/' + n, { method: 'PATCH', headers: headers(),
       body: JSON.stringify(payload) });
@@ -923,103 +822,13 @@
     } catch (e) { devMsg('操作失败：' + e.message, true); }
   }
 
-  /** 暂停 / 开始 / 取消认领 / 删除记录 / 永久删除。 */
-  async function runAction(item, act) {
-    if (!token) { msg('需要先配置主令牌', true); return; }
-    var st = rdl(item.body) || {};
-    var first = rawFirstLine(item.body);
-    var cur = { s: st.s || 'queued', p: Number(st.p) || 0, done: Number(st.done) || 0,
-                total: Number(st.total) || 0, ts: Number(st.ts) || 0, dev: String(st.dev || '') };
-    try {
-      if (act === 'pause') {
-        // 暂停：保留认领与已下载分片，写 paused + PAUSE 标记
-        await patchIssue(item.number, { state: 'open',
-          body: taskBody(first, extend(cur, { s: 'paused' }), ['<!--RDL-PAUSE-->']) });
-        msg(cur.dev ? '已暂停：回到「暂停中」，分片保留'
-                    : '已暂停：回到「暂停队列（未认领）」，分片保留');
-      } else if (act === 'start') {
-        // 启动：保留认领（暂停中 → 下载中）或保持未认领（暂停队列 → 队列中）
-        await patchIssue(item.number, { state: 'open',
-          body: taskBody(first, extend(cur, { s: 'queued' }), []) });
-        msg(cur.dev ? '已启动：回到「下载中」，保留已下载进度'
-                    : '已启动：回到「队列中（未认领）」，等设备认领');
-      } else if (act === 'cancel') {
-        // 取消：进度归零、解除认领，回到队列中（未认领）
-        await patchIssue(item.number, { state: 'open',
-          body: taskBody(first, extend(cur, { s: 'queued', p: 0, dev: '' }), []) });
-        msg('已取消：回到「队列中（未认领）」，进度归零');
-      } else if (act === 'restart') {
-        // 重启：已完成从 0 开始，失败保留断点；都解除认领
-        var done = Number(cur.done) || 0, total = Number(cur.total) || 0;
-        var reset = cur.s === 'done' || (total > 0 && done >= total);
-        await patchIssue(item.number, { state: 'open',
-          body: taskBody(first, extend(cur, {
-            s: 'queued', dev: '', p: reset ? 0 : cur.p, done: reset ? 0 : cur.done,
-            total: reset ? 0 : cur.total }), []) });
-        msg('已重启：回到「队列中（未认领）」');
-      } else if (act === 'delete') {
-        // 删除：二次确认后清空 issue 内容，槽位回到「空闲槽位」可复用
-        if (!window.confirm('删除 #' + item.number + '？\n\n任务内容会被清空，槽位回到「空闲槽位」可被复用。')) return;
-        await patchIssue(item.number, { title: '空闲槽位', body: '', state: 'open' });
-        msg('已删除 #' + item.number + '，槽位回到「空闲槽位」');
-      }
-      refresh();
-    } catch (e) { msg('操作失败：' + e.message, true); }
-  }
-
-  /**
-   * 状态只有 6 种：绿 = 队列中（未认领）/ 暂停队列（未认领），
-   * 蓝 = 下载中 / 暂停中 / 已完成 / 失败。历史遗留的 canceled / deleted / 空标记一律按「队列中（未认领）」处理。
-   */
-  function stateOf(item) {
-    var s = rdl(item.body) || {};
-    var dev = String(s.dev || '');
-    var k = s.s || 'queued';
-    if (k === 'queued') {
-      return dev ? { key: 'downloading', label: '下载中', data: s }
-                 : { key: 'queued', label: '队列中（未认领）', data: s };
-    }
-    if (k === 'paused') {
-      return dev ? { key: 'paused', label: '暂停中', data: s }
-                 : { key: 'pausedFree', label: '暂停队列（未认领）', data: s };
-    }
-    if (k === 'downloading') return { key: 'downloading', label: '下载中', data: s };
-    if (k === 'done') return { key: 'done', label: '已完成', data: s };
-    if (k === 'failed') return { key: 'failed', label: '失败', data: s };
-    return { key: 'queued', label: '队列中（未认领）', data: s };
-  }
-
-  /** 筛选：状态 + 设备（dev 为空 = 未认领）；只重渲染缓存，不发请求。 */
-  function matchFilter(it, st) {
-    var dev = String((st.data || {}).dev || '');
-    if (filterDev === '') { if (dev) return false; }
-    else if (filterDev !== 'all' && dev !== filterDev) return false;
-    if (filterStatus === 'all') return true;
-    if (filterStatus === 'unclaimed') return !dev;
-    return st.key === filterStatus;
-  }
-
-  /** 设备下拉随设备列表重建（选项没变就不动 DOM，避免打断交互），尽量保留选中项。 */
-  function fillDevSelect(devs) {
-    var sel = $('fDev'), want = filterDev, i;
-    var sig = devs.map(function (d) { return d.id + '\u0001' + d.model; }).join('\u0002');
-    if (sel.getAttribute('data-sig') !== sig) {
-      var h = '<option value="all">全部设备</option><option value="">未认领</option>';
-      devs.forEach(function (d) { h += '<option value="' + esc(d.id) + '">' + esc(d.model) + '</option>'; });
-      sel.innerHTML = h;
-      sel.setAttribute('data-sig', sig);
-    }
-    var keep = false;
-    for (i = 0; i < sel.options.length; i++) { if (sel.options[i].value === want) keep = true; }
-    filterDev = keep ? want : 'all';
-    sel.value = filterDev;
-  }
-
-  /** 设备监控：5 分钟判在线；每台可下发 cmd=stop 与改 max（1~5）。 */
   function renderDev(devs) {
     var box = $('devList');
-    $('cardDev').className = 'card card-dev' + (devs.length ? '' : ' hide');
-    if (!devs.length) { box.innerHTML = ''; devHtml = ''; return; }
+    if (!devs.length) {
+      box.innerHTML = '<div class="empty">还没有设备上报。先在左边「添加设备」填好令牌，设备启动后会自动出现。</div>';
+      devHtml = null;
+      return;
+    }
     var html = '';
     devs.forEach(function (d) {
       var x = d.data || {}, on = isOnline(x), n = d.issue.number;
@@ -1094,54 +903,9 @@
   function render(items) {
     cache = Array.isArray(items) ? items : [];
     var devs = devList(cache);
-    fillDevSelect(devs);
     renderDev(devs);
-
-    var box = $('list');
-    var all = taskList(cache).slice().reverse();   // 新的在前
-    if (!all.length) { box.innerHTML = '<div class="empty">队列为空，上面加一个链接试试</div>'; return; }
-    var shown = all.filter(function (it) { return matchFilter(it, stateOf(it)); });
-    if (!shown.length) { box.innerHTML = '<div class="empty">没有符合筛选条件的任务</div>'; return; }
-
-    var html = '';
-    shown.forEach(function (it, i) {
-      var st = stateOf(it), s = st.data || {};
-      var pct = Math.max(0, Math.min(100, Number(s.p) || 0));
-      var barCls = st.key === 'done' ? 'done' : (st.key === 'failed' ? 'failed' : '');
-      var dev = String(s.dev || '');
-      var url = linkOf(it.body);
-      var meta = '';
-      if (s.total > 0) meta += fmtBytes(s.done) + ' / ' + fmtBytes(s.total) + ' · ' + pct + '%';
-      else if (s.done > 0) meta += fmtBytes(s.done);
-      if (s.ts) meta += ' · 更新 ' + new Date(Number(s.ts)).toLocaleTimeString('zh-CN');
-      if (it.created_at) meta += ' · 创建 ' + new Date(it.created_at).toLocaleString('zh-CN');
-      var acts = actionsFor(it, st);
-      var cols = (acts.match(/<button/g) || []).length === 3 ? 3 : 2;
-      html += '<div class="item">'
-        + '<div class="item-head"><span class="num">#' + (i + 1) + '</span>'
-        + '<span class="badge ' + esc(st.key) + '">' + esc(st.label)
-        + (st.key === 'downloading' ? ' ' + pct + '%' : '') + '</span>'
-        + '<span class="badge ' + (dev ? 'dev' : 'unclaimed') + '">'
-        + esc(dev ? devNameOf(dev, devs) : '未认领') + '</span>'
-        + '</div>'
-        + '<div class="name" title="' + esc(url) + '">' + esc(fileNameOf(url)) + '</div>'
-        + '<div class="url fold" title="点击展开 / 收起">' + esc(url) + '</div>'
-        + '<div class="bar ' + barCls + '"><i style="width:' + pct + '%"></i></div>'
-        + '<div class="meta">' + esc(meta || '暂无进度数据') + '</div>'
-        + '<div class="actions" style="--cols:' + cols + '">' + acts + '</div></div>';
-    });
-    box.innerHTML = html;
-    Array.prototype.forEach.call(box.querySelectorAll('.url'), function (el) {
-      el.addEventListener('click', function () { el.classList.toggle('fold'); });
-    });
-    Array.prototype.forEach.call(box.querySelectorAll('button[data-act]'), function (b) {
-      b.addEventListener('click', function () {
-        var n = Number(b.getAttribute('data-n'));
-        var it = cache.filter(function (x) { return x.number === n; })[0];
-        if (it) runAction(it, b.getAttribute('data-act'));
-      });
-    });
   }
+
   async function refresh() {
     try {
       var r = await fetch(API + '?state=all&per_page=100&_t=' + Date.now(),
@@ -1155,18 +919,14 @@
       }
       var items = await r.json();
       render(items);
-      $('statusLine').textContent = '中转库 ' + QUEUE + ' · 任务 ' + taskList(items).length
-        + ' 条 · 设备 ' + devList(items).length + ' 台 · 上次刷新 '
+      $('statusLine').textContent = '设备 ' + devList(items).length + ' 台 · 上次刷新 '
         + new Date().toLocaleTimeString('zh-CN') + ' · 自动刷新'
         + (autoOn ? '每 5 秒' : '已关闭');
     } catch (e) {
       $('statusLine').textContent = '读取失败：' + e.message;
-      $('list').innerHTML = '<div class="empty">' + esc(e.message) + '</div>';
     }
   }
   $('btnRefresh').addEventListener('click', refresh);
-  $('fStatus').addEventListener('change', function () { filterStatus = this.value; render(cache); });
-  $('fDev').addEventListener('change', function () { filterDev = this.value; render(cache); });
   $('btnAuto').addEventListener('click', function () {
     autoOn = !autoOn;
     localStorage.setItem('rdl_auto', autoOn ? '1' : '0');
