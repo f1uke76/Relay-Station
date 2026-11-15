@@ -52,7 +52,6 @@
   .badge.failed { background: #4a2222; color: #ffab9f; }
   .badge.paused { background: #3a3320; color: #ffd08a; }
   .badge.closed { background: #2b2b30; color: #8b919a; }
-  .badge.dev { background: #1d2b3a; color: #9dc4ff; }
   .badge.unclaimed { background: #262b34; color: #9aa0a6; }
   .badge.queued, .badge.pausedFree { background: #17321f; color: #9fe0a8; }
   .badge.st-start { background: #3a2b12; color: #ffcf9a; }
@@ -261,8 +260,8 @@
     <div class="filters">
       <select id="fStatus" aria-label="按状态筛选">
         <option value="all">全部状态</option>
-        <option value="queued">队列中（未认领）</option>
-        <option value="pausedFree">暂停队列（未认领）</option>
+        <option value="queued">队列中</option>
+        <option value="pausedFree">暂停队列</option>
         <option value="downloading">下载中</option>
         <option value="paused">暂停中</option>
         <option value="done">已完成</option>
@@ -936,18 +935,18 @@
         await patchIssue(item.number, { state: 'open',
           body: taskBody(first, extend(cur, { s: 'paused' }), ['<!--RDL-PAUSE-->']) });
         msg(cur.dev ? '已暂停：回到「暂停中」，分片保留'
-                    : '已暂停：回到「暂停队列（未认领）」，分片保留');
+                    : '已暂停：回到「暂停队列」，分片保留');
       } else if (act === 'start') {
         // 启动：保留认领（暂停中 → 下载中）或保持未认领（暂停队列 → 队列中）
         await patchIssue(item.number, { state: 'open',
           body: taskBody(first, extend(cur, { s: 'queued' }), []) });
         msg(cur.dev ? '已启动：回到「下载中」，保留已下载进度'
-                    : '已启动：回到「队列中（未认领）」，等设备认领');
+                    : '已启动：回到「队列中」，等设备认领');
       } else if (act === 'cancel') {
         // 取消：进度归零、解除认领，回到队列中（未认领）
         await patchIssue(item.number, { state: 'open',
           body: taskBody(first, extend(cur, { s: 'queued', p: 0, dev: '' }), []) });
-        msg('已取消：回到「队列中（未认领）」，进度归零');
+        msg('已取消：回到「队列中」，进度归零');
       } else if (act === 'restart') {
         // 重启：已完成从 0 开始，失败保留断点；都解除认领
         var done = Number(cur.done) || 0, total = Number(cur.total) || 0;
@@ -956,7 +955,7 @@
           body: taskBody(first, extend(cur, {
             s: 'queued', dev: '', p: reset ? 0 : cur.p, done: reset ? 0 : cur.done,
             total: reset ? 0 : cur.total }), []) });
-        msg('已重启：回到「队列中（未认领）」');
+        msg('已重启：回到「队列中」');
       } else if (act === 'delete') {
         // 删除：二次确认后清空 issue 内容，槽位回到「空闲槽位」可复用
         if (!window.confirm('删除 #' + item.number + '？\n\n任务内容会被清空，槽位回到「空闲槽位」可被复用。')) return;
@@ -977,16 +976,16 @@
     var k = s.s || 'queued';
     if (k === 'queued') {
       return dev ? { key: 'downloading', label: '下载中', data: s }
-                 : { key: 'queued', label: '队列中（未认领）', data: s };
+                 : { key: 'queued', label: '队列中', data: s };
     }
     if (k === 'paused') {
       return dev ? { key: 'paused', label: '暂停中', data: s }
-                 : { key: 'pausedFree', label: '暂停队列（未认领）', data: s };
+                 : { key: 'pausedFree', label: '暂停队列', data: s };
     }
     if (k === 'downloading') return { key: 'downloading', label: '下载中', data: s };
     if (k === 'done') return { key: 'done', label: '已完成', data: s };
     if (k === 'failed') return { key: 'failed', label: '失败', data: s };
-    return { key: 'queued', label: '队列中（未认领）', data: s };
+    return { key: 'queued', label: '队列中', data: s };
   }
 
   /** 筛选：状态 + 设备（dev 为空 = 未认领）；只重渲染缓存，不发请求。 */
@@ -1121,7 +1120,7 @@
         + '<div class="item-head"><span class="num">#' + (i + 1) + '</span>'
         + '<span class="badge ' + esc(st.key) + '">' + esc(st.label)
         + (st.key === 'downloading' ? ' ' + pct + '%' : '') + '</span>'
-        + '<span class="badge ' + (dev ? 'dev' : 'unclaimed') + '">'
+        + '<span class="badge unclaimed">'
         + esc(dev ? devNameOf(dev, devs) : '未认领') + '</span>'
         + '</div>'
         + '<div class="name" title="' + esc(url) + '">' + esc(fileNameOf(url)) + '</div>'
