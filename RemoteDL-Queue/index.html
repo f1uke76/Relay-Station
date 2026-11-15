@@ -81,8 +81,10 @@
   .dev-id { font: 11px ui-monospace, monospace; color: #6f7680; }
   .dev-actions { display: flex; gap: 8px; margin-top: 10px; }
   .dev-actions button { flex: 1 1 0; min-width: 0; }
-  .dev-max { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: #8b919a; }
-  .dev-max select { width: 64px; }
+  /* 并发上限：与状态徽标完全相同的尺寸，紧跟在状态后面 */
+  .badge.devmax { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; }
+  .badge.devmax select { -webkit-appearance: none; appearance: none; background: transparent;
+    border: 0; padding: 0; margin: 0; font: inherit; color: inherit; outline: none; cursor: pointer; }
   .empty { color: #8b919a; font-size: 13px; padding: 14px 0; text-align: center; }
   details { margin-top: 10px; }
   summary { cursor: pointer; font-size: 12px; color: #9aa0a6; }
@@ -1047,6 +1049,8 @@
       html += '<div class="dev">'
         + '<div class="dev-head"><span class="dev-name">' + esc(d.model) + '</span>'
         + '<span class="badge st-' + stt + '">' + stName + '</span>'
+        + '<label class="badge devmax">并发<select data-devmax="1" data-n="' + n + '" aria-label="并发上限">'
+        + opts + '</select></label>'
         + '</div>'
         + '<div class="meta">电量 ' + esc(bat) + (x.charging ? ' · 充电中' : '')
         + ' · WiFi ' + esc(x.wifi == null || x.wifi === '' ? '—' : x.wifi)
@@ -1054,8 +1058,6 @@
         + (x.cmd === 'delete' ? ' · 已下发删除' : (x.cmd ? ' · 待执行 ' + esc(x.cmd) : ''))
         + '</div>'
         + '<div class="dev-actions">' + btns + '</div>'
-        + '<div class="dev-max">并发上限 <select data-devmax="1" data-n="' + n + '" aria-label="并发上限">'
-        + opts + '</select></div>'
         + '</div>';
     });
     if (html === devHtml) return;   // 内容没变：保留正在操作的下拉
